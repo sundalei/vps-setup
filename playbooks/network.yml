@@ -1,0 +1,9 @@
+---
+# WireGuard mesh. Must run against the WHOLE group in one play: wg0.conf.j2 reads
+# each peer's public key out of hostvars, which only exists if that host ran too.
+- name: WireGuard mesh
+  hosts: wireguard_mesh
+  become: true
+  roles:
+    - role: wireguard
+      tags: [wireguard, network]

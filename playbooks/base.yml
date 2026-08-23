@@ -1,0 +1,8 @@
+---
+# Baseline every managed machine gets: admin user, sysctl, packages, firewall.
+- name: Baseline configuration
+  hosts: vps
+  become: true
+  roles:
+    - role: common
+      tags: [common, base]

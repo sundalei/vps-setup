@@ -1,0 +1,12 @@
+---
+# Cluster Secondary & Public Web Tier (es2)
+# ------------------------------------------------------------------------------
+# 1. Elasticsearch Data Node:
+#    - Dedicated data node (master role omitted to keep voting quorum at 1 on es1).
+# 2. Public Web / Reverse Proxy:
+#    - Hosts edge services (kibana, web_proxy); public domains resolve to this host.
+#
+# Note: Which services run here is governed by group membership in
+# `inventory/hosts.yml`, rather than variable toggles in this file.
+wg_ip: "10.10.0.2"
+wg_public_endpoint: "31.97.136.158" # this node's PUBLIC ip (peer dials this)

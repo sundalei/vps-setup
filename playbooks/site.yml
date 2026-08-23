@@ -1,0 +1,8 @@
+---
+# Everything, in dependency order. Individual projects can be run on their own:
+#   ansible-playbook playbooks/docker.yml
+- name: Baseline
+  ansible.builtin.import_playbook: base.yml
+
+- name: Network
+  ansible.builtin.import_playbook: network.yml

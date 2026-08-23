@@ -1,0 +1,12 @@
+---
+# Cluster Primary (es1)
+# ------------------------------------------------------------------------------
+# 1. Elasticsearch Master:
+#    - Master-eligible node running all default roles (no es_node_roles override).
+# 2. TLS / Security:
+#    - Acts as the Certificate Authority (CA) for Elasticsearch transport certs.
+#
+# Note: Which services run here is governed by group membership in
+# `inventory/hosts.yml`, rather than variable toggles in this file.
+wg_ip: "10.10.0.1"
+wg_public_endpoint: "187.77.1.89" # this node's PUBLIC ip (peer dials this)

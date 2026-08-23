@@ -1,0 +1,14 @@
+# Ansible managed: wg0.conf
+[Interface]
+Address = {{ wg_ip }}/{{ wg_subnet_cidr.split('/')[1] }}
+ListenPort = {{ wg_port }}
+PrivateKey = {{ wireguard_private_key }}
+
+{% for peer in groups['wireguard_mesh'] if peer != inventory_hostname %}
+[Peer]
+# {{ peer }}
+PublicKey = {{ hostvars[peer].wireguard_public_key }}
+AllowedIPs = {{ hostvars[peer].wg_ip }}/32
+EndPoint = {{ hostvars[peer].wg_public_endpoint }}:{{ wg_port }}
+PersistentKeepalive = 25
+{% endfor %}
