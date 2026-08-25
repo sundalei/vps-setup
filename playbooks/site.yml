@@ -6,3 +6,6 @@
 
 - name: Network
   ansible.builtin.import_playbook: network.yml
+
+- name: Elasticsearch stack
+  ansible.builtin.import_playbook: elasticsearch.yml

@@ -1,0 +1,21 @@
+---
+# Elasticsearch Stack
+# ------------------------------------------------------------------------------
+# Divided into three distinct plays targeting separate inventory groups:
+#   1. Elasticsearch Cluster (`es_cluster`) : Node setup, clustering, and security.
+#   2. Kibana                (`kibana`)     : Analytics & visualization UI.
+#   3. Web Proxy             (`web_proxy`)  : Reverse proxy & TLS termination.
+#
+# IMPORTANT: Play 1 must run against the ENTIRE `es_cluster` group together
+# (avoid using `--limit` across cluster members) because:
+#   - TLS Certificate Exchange : Transport certs are derived from `hostvars[ca_host]`.
+#   - Peer Discovery           : `discovery.seed_hosts` is rendered from all group members.
+#   - Cluster Health Gate      : Startup check validates that active node count
+#                                matches the full size of `groups['es_cluster']`.
+# ------------------------------------------------------------------------------
+- name: Elasticsearch cluster
+  hosts: es_cluster
+  become: true
+  roles:
+    - role: elasticsearch
+      tags: [elasticsearch, es, cluster]

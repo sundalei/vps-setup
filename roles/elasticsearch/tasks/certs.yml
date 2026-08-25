@@ -1,0 +1,68 @@
+---
+# Transport + HTTP TLS: a CA and per-node PEM certs. Everything is generated once
+# on the cert-authority node (es1) and exposed as facts so every node can read them
+# via hostvars. The CA and node certs are guarded separately, so a run that fails
+# after the CA (but before the certs) resumes cleanly instead of skipping both.
+
+- name: Generate cluster certs on the authority node
+  when: es_cert_authority | default(false)
+  block:
+    # --- 1. Certificate Authority (CA) ---
+    - name: Create CA work directory
+      ansible.builtin.file:
+        path: /root/es-ca
+        state: directory
+        mode: "0700"
+
+    - name: Generate CA (PEM)
+      ansible.builtin.command:
+        cmd: /usr/share/elasticsearch/bin/elasticsearch-certutil ca --pem --silent --out /root/es-ca.zip
+        creates: /root/es-ca.zip
+      register: elasticsearch_ca_gen
+
+    # Force extraction if the CA zip was just generated; otherwise skip if ca.crt exists.
+    - name: Unpack CA
+      ansible.builtin.unarchive:
+        src: /root/es-ca.zip
+        dest: /root/es-ca
+        remote_src: true
+        creates: "{{ omit if elasticsearch_ca_gen.changed else '/root/es-ca/ca/ca.crt' }}"
+
+    # --- 2. Per-Node Certificates ---
+    - name: Write instances.yml
+      ansible.builtin.copy:
+        dest: /root/es-instances.yml
+        mode: "0600"
+        content: |
+          instances:
+          {% for h in groups['es_cluster'] %}
+            - name: {{ hostvars[h].es_node_name }}
+              dns: ["{{ hostvars[h].es_node_name }}", "localhost"]
+              ip: ["{{ hostvars[h].wg_ip }}", "127.0.0.1", "::1"]
+          {% endfor %}
+
+    - name: Create certs work directory
+      ansible.builtin.file:
+        path: /root/es-certs
+        state: directory
+        mode: "0700"
+
+    - name: Generate per-node certs (PEM)
+      ansible.builtin.command:
+        cmd: >
+          /usr/share/elasticsearch/bin/elasticsearch-certutil cert --pem --silent
+          --in /root/es-instances.yml
+          --ca-cert /root/es-ca/ca/ca.crt --ca-key /root/es-ca/ca/ca.key
+          --out /root/es-certs.zip
+        creates: /root/es-certs.zip
+      register: elasticsearch_node_certs_gen
+
+    # Force extraction if node certs were just regenerated; otherwise skip if node certs exist.
+    - name: Unpack node certs
+      ansible.builtin.unarchive:
+        src: /root/es-certs.zip
+        dest: /root/es-certs
+        remote_src: true
+        creates: "{{ omit if elasticsearch_node_certs_gen.changed else node_cert_path }}"
+      vars:
+        node_cert_path: "/root/es-certs/{{ hostvars[inventory_hostname].es_node_name }}/{{ hostvars[inventory_hostname].es_node_name }}.crt"

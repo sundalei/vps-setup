@@ -10,3 +10,6 @@
 # `inventory/hosts.yml`, rather than variable toggles in this file.
 wg_ip: "10.10.0.1"
 wg_public_endpoint: "187.77.1.89" # this node's PUBLIC ip (peer dials this)
+
+es_node_name: "es1"
+es_cert_authority: true # transport CA + all node certs are generated here
