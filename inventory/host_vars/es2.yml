@@ -1,8 +1,8 @@
 ---
-# Cluster Secondary & Public Web Tier (es2)
+# Cluster Node 2 & Public Web Tier (es2)
 # ------------------------------------------------------------------------------
-# 1. Elasticsearch Data Node:
-#    - Dedicated data node (master role omitted to keep voting quorum at 1 on es1).
+# 1. Elasticsearch Role:
+#    - Master-eligible & data node in the 3-node HA quorum (2 of 3 votes).
 # 2. Public Web / Reverse Proxy:
 #    - Hosts edge services (kibana, web_proxy); public domains resolve to this host.
 #

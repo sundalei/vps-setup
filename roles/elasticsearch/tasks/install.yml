@@ -1,5 +1,5 @@
 ---
-# Repo + pinned install. The version pin is what keeps both nodes identical.
+# Repo + pinned install. The version pin keeps all cluster nodes identical.
 
 # --- RedHat / AlmaLinux ---
 - name: Import Elastic GPG key (RedHat)

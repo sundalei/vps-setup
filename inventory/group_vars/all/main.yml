@@ -1,6 +1,6 @@
 ---
 # --- Non-secret configuration (secrets live in vault.yml) ---
-# Pin BOTH nodes to the exact same version
+# Pin ALL cluster nodes to the exact same version
 elastic_stack_version: "9.4.4"
 
 # Admin user created on every host
@@ -10,3 +10,6 @@ admin_user: "dalei"
 wg_subnet_cidr: "10.10.0.0/24"
 wg_port: 51820
 wg_interface: "wg0"
+
+# Where certs/keystores live
+es_cert_dir: "/etc/elasticsearch/certs"

@@ -1,8 +1,8 @@
 ---
-# Cluster Primary (es1)
+# Cluster Node 1 & Certificate Authority (es1)
 # ------------------------------------------------------------------------------
-# 1. Elasticsearch Master:
-#    - Master-eligible node running all default roles (no es_node_roles override).
+# 1. Elasticsearch Role:
+#    - Master-eligible & data node in the 3-node HA quorum (2 of 3 votes).
 # 2. TLS / Security:
 #    - Acts as the Certificate Authority (CA) for Elasticsearch transport certs.
 #

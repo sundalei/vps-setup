@@ -1,0 +1,12 @@
+---
+# Cluster Node 3 (es3)
+# ------------------------------------------------------------------------------
+# 1. Elasticsearch Role:
+#    - Master-eligible & data node completing the 3-node HA quorum (2 of 3 votes).
+#
+# Note: Which services run here is governed by group membership in
+# `inventory/hosts.yml`, rather than variable toggles in this file.
+wg_ip: "10.10.0.3"
+wg_public_endpoint: "177.7.34.25"
+es_node_name: "es3"
+es_cert_authority: false

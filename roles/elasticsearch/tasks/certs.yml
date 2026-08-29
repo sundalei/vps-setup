@@ -66,3 +66,84 @@
         creates: "{{ omit if elasticsearch_node_certs_gen.changed else node_cert_path }}"
       vars:
         node_cert_path: "/root/es-certs/{{ hostvars[inventory_hostname].es_node_name }}/{{ hostvars[inventory_hostname].es_node_name }}.crt"
+
+    - name: Read CA cert
+      ansible.builtin.slurp:
+        src: /root/es-ca/ca/ca.crt
+      register: elasticsearch_ca_slurp
+
+    - name: Read each node's cert
+      ansible.builtin.slurp:
+        src: "/root/es-certs/{{ hostvars[node].es_node_name }}/{{ hostvars[node].es_node_name }}.crt"
+      loop: "{{ groups['es_cluster'] }}"
+      loop_control:
+        loop_var: node
+      register: elasticsearch_node_crt_slurp
+
+    - name: Read each node's key
+      ansible.builtin.slurp:
+        src: "/root/es-certs/{{ hostvars[node].es_node_name }}/{{ hostvars[node].es_node_name }}.key"
+      loop: "{{ groups['es_cluster'] }}"
+      loop_control:
+        loop_var: node
+      register: elasticsearch_node_key_slurp
+
+    # Keyed by inventory_hostname (== es_node_name today) so any node can fetch its
+    # own material with hostvars[ca_host].es_node_crt[inventory_hostname].
+    - name: Expose cert material as facts (shared to all nodes via hostvars) # noqa: var-naming[no-role-prefix]
+      ansible.builtin.set_fact:
+        es_ca_pem: "{{ elasticsearch_ca_slurp.content | b64decode }}"
+        es_node_crt: >-
+          {{ dict(elasticsearch_node_crt_slurp.results
+             | map(attribute='node')
+             | zip(elasticsearch_node_crt_slurp.results | map(attribute='content') | map('b64decode'))) }}
+        es_node_key: >-
+          {{ dict(elasticsearch_node_key_slurp.results
+             | map(attribute='node')
+             | zip(elasticsearch_node_key_slurp.results | map(attribute='content') | map('b64decode'))) }}
+      no_log: true
+
+# Resolve which host generated the certs, so every node (authority or not) can
+# read the shared facts via hostvars[ca_host]
+- name: Resolve the cert-authority host # noqa: var-naming[no-role-prefix]
+  ansible.builtin.set_fact:
+    ca_host: >-
+      {{ groups['es_cluster'] | map('extract', hostvars)
+         | selectattr('es_cert_authority', 'defined')
+         | selectattr('es_cert_authority')
+         | map(attribute='inventory_hostname') | list | first }}
+
+- name: Ensure certs dir exists
+  ansible.builtin.file:
+    path: "{{ es_cert_dir }}"
+    state: directory
+    owner: root
+    group: elasticsearch
+    mode: "0750"
+
+- name: Install CA cert
+  ansible.builtin.copy:
+    dest: "{{ es_cert_dir }}/ca.crt"
+    content: "{{ hostvars[ca_host].es_ca_pem }}"
+    owner: root
+    group: elasticsearch
+    mode: "0640"
+  notify: Restart elasticsearch
+
+- name: Install this node's cert
+  ansible.builtin.copy:
+    dest: "{{ es_cert_dir }}/node.crt"
+    content: "{{ hostvars[ca_host].es_node_crt[es_node_name] }}"
+    owner: root
+    group: elasticsearch
+    mode: "0640"
+  notify: Restart elasticsearch
+
+- name: Install this node's key
+  ansible.builtin.copy:
+    dest: "{{ es_cert_dir }}/node.key"
+    content: "{{ hostvars[ca_host].es_node_key[es_node_name] }}"
+    owner: root
+    group: elasticsearch
+    mode: "0640"
+  notify: Restart elasticsearch

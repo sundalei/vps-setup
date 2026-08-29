@@ -1,0 +1,9 @@
+---
+- name: Check if this node has already bootstrapped the cluster
+  ansible.builtin.stat:
+    path: /etc/elasticsearch/.cluster_bootstrapped
+  register: es_bootstrap_marker # noqa: var-naming[no-role-prefix]
+
+- name: Expose bootstrap state as a boolean
+  ansible.builtin.set_fact:
+    es_bootstrapped: "{{ es_bootstrap_marker.stat.exists }}" # noqa: var-naming[no-role-prefix]
