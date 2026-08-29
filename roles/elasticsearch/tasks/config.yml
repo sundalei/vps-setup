@@ -7,3 +7,18 @@
 - name: Expose bootstrap state as a boolean
   ansible.builtin.set_fact:
     es_bootstrapped: "{{ es_bootstrap_marker.stat.exists }}" # noqa: var-naming[no-role-prefix]
+
+- name: Ensure the ES keystore exists
+  ansible.builtin.command:
+    cmd: /usr/share/elasticsearch/bin/elasticsearch-keystore create
+    creates: /etc/elasticsearch/elasticsearch.keystore
+
+# `bootstrap.password` sets the `elastic` superuser password at first cluster formation.
+# Only meaningful pre-bootstrap, so we set it once.
+# `bootstrap.password` only takes effect at first cluster formation, so setting it
+# gives us a KNOWN elastic password (from the vault) instead of the random one the
+# installer generates. Guarded by `not es_bootstrapped` so it runs only on first boot.
+- name: Read existing keystore settings
+  ansible.builtin.command: /usr/share/elasticsearch/bin/elasticsearch-keystore list
+  register: es_keystore_settings # noqa: var-naming[no-role-prefix]
+  changed_when: false
