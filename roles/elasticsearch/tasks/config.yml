@@ -1,4 +1,11 @@
 ---
+# Elasticsearch node and cluster configuration:
+# 1. Bootstrap State: Detect if initial cluster formation has already occurred.
+# 2. Keystore & Credentials: Seed the superuser ('elastic') bootstrap password.
+# 3. JVM Tuning: Set minimum and maximum heap allocation.
+# 4. Main Config: Render the elasticsearch.yml configuration template.
+
+# --- 1. Bootstrap State Detection ---
 - name: Check if this node has already bootstrapped the cluster
   ansible.builtin.stat:
     path: /etc/elasticsearch/.cluster_bootstrapped
@@ -8,17 +15,59 @@
   ansible.builtin.set_fact:
     es_bootstrapped: "{{ es_bootstrap_marker.stat.exists }}" # noqa: var-naming[no-role-prefix]
 
+# --- 2. Keystore & Credentials Setup ---
 - name: Ensure the ES keystore exists
   ansible.builtin.command:
     cmd: /usr/share/elasticsearch/bin/elasticsearch-keystore create
     creates: /etc/elasticsearch/elasticsearch.keystore
 
-# `bootstrap.password` sets the `elastic` superuser password at first cluster formation.
-# Only meaningful pre-bootstrap, so we set it once.
-# `bootstrap.password` only takes effect at first cluster formation, so setting it
-# gives us a KNOWN elastic password (from the vault) instead of the random one the
-# installer generates. Guarded by `not es_bootstrapped` so it runs only on first boot.
 - name: Read existing keystore settings
   ansible.builtin.command: /usr/share/elasticsearch/bin/elasticsearch-keystore list
   register: es_keystore_settings # noqa: var-naming[no-role-prefix]
   changed_when: false
+
+# Seeds the initial `elastic` superuser password from Vault into the keystore.
+# Note: `bootstrap.password` only takes effect during the initial cluster formation (first boot).
+- name: Seed the elastic bootstrap password (first bootstrap only)
+  ansible.builtin.command:
+    argv:
+      - /usr/share/elasticsearch/bin/elasticsearch-keystore
+      - add
+      - --stdin
+      - bootstrap.password
+    stdin: "{{ vault_elastic_password }}"
+    stdin_add_newline: false
+  when:
+    - not es_bootstrapped
+    - "'bootstrap.password' not in es_keystore_settings.stdout_lines"
+  # Idempotency is guarded by the `when` condition. If executed, the keystore was modified.
+  changed_when: true
+  no_log: true
+
+# --- 3. JVM Heap Configuration ---
+- name: Heap sizing
+  ansible.builtin.copy:
+    dest: /etc/elasticsearch/jvm.options.d/heap.options
+    content: "-Xms{{ es_heap }}\n-Xmx{{ es_heap }}\n"
+    owner: root
+    group: elasticsearch
+    mode: "0640"
+  notify: Restart elasticsearch
+
+# --- 4. Main Configuration Template ---
+# File mode is 0640 (root:elasticsearch) instead of package default 0660:
+# - The service only needs read permissions at startup.
+# - Configuration is managed exclusively by Ansible, preventing unintended local mutation.
+#
+# Operational Note:
+# - If adding nodes via token auto-enrollment (`elasticsearch-reconfigure-node`), temporarily
+#   grant group-write (0660) so the process can update this file, then revert to 0640.
+# - Kibana enrollment does NOT require 0660 here (it writes to kibana.yml).
+- name: Render elasticsearch.yml
+  ansible.builtin.template:
+    src: elasticsearch.yml.j2
+    dest: /etc/elasticsearch/elasticsearch.yml
+    owner: root
+    group: elasticsearch
+    mode: "0640"
+  notify: Restart elasticsearch
