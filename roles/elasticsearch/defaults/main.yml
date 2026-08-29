@@ -1,0 +1,7 @@
+---
+# noqa: var-naming[no-role-prefix]
+es_node_roles:
+  - master
+  - data
+  - ingest
+  - transform
