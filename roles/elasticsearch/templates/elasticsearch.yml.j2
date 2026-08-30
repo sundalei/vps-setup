@@ -16,3 +16,28 @@ network.host: 127.0.0.1
 http.port: {{ es_http_port | default(9200) }}
 transport.host: {{ wg_ip }}
 transport.port: {{ es_transport_port | default(9300) }}
+
+# --- Discovery ---
+# All cluster nodes in the WireGuard mesh
+discovery.seed_hosts:
+{% for h in groups['es_cluster'] | sort %}
+  - "{{ hostvars[h].wg_ip }}:{{ es_transport_port | default(9300) }}"
+{% endfor %}
+
+{% if not (es_bootstrapped | default(false)) %}
+# Initial master nodes for first-time cluster bootstrap (3-node HA quorum).
+# Evaluated ONLY on first cluster formation; removed once .cluster_bootstrapped exists.
+cluster.initial_master_nodes:
+{% for h in groups['es_cluster'] | sort %}
+  - "{{ hostvars[h].es_node_name }}"
+{% endfor %}
+{% endif %}
+
+# --- Security & Transport TLS ---
+xpack.security.enabled: true
+xpack.security.http.ssl.enabled: false # Reverse proxy terminates public TLS
+xpack.security.transport.ssl.enabled: true
+xpack.security.transport.ssl.verification_mode: certificate
+xpack.security.transport.ssl.key: certs/node.key
+xpack.security.transport.ssl.certificate: certs/node.crt
+xpack.security.transport.ssl.certificate_authorities: ["certs/ca.crt"]
