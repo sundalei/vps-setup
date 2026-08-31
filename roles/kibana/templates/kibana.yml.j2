@@ -1,0 +1,15 @@
+# Managed by Ansible - do not edit by hand #
+server.host: "127.0.0.1"
+server.port: {{ kibana_port }}
+server.publicBaseUrl: "https://{{ kibana_domain }}"
+
+elasticsearch.hosts: ["http://127.0.0.1:{{ es_http_port }}"]
+elasticsearch.username: "kibana_system"
+elasticsearch.password: "{{ vault_kibana_system_password }}"
+
+# Static encryption keys — MUST be set or Kibana regenerates them on every
+# restart, invalidating sessions and corrupting encrypted saved objects/reports.
+# Each must be at least 32 characters. Generate: openssl rand -base64 24
+xpack.encryptedSavedObjects.encryptionKey: "{{ vault_kibana_encryption_keys.encryptedSavedObjects }}"
+xpack.reporting.encryptionKey: "{{ vault_kibana_encryption_keys.reporting }}"
+xpack.security.encryptionKey: "{{ vault_kibana_encryption_keys.security }}"

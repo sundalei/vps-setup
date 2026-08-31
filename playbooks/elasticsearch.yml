@@ -19,3 +19,10 @@
   roles:
     - role: elasticsearch
       tags: [elasticsearch, es, cluster]
+
+- name: Kibana
+  hosts: kibana
+  become: true
+  roles:
+    - role: kibana
+      tags: [kibana]
