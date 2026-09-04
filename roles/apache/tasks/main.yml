@@ -1,0 +1,31 @@
+---
+# Apache reverse proxy + Let's Encrypt, on either distro family.
+#
+# Per-family differences (package names, service name, vhost directory, which
+# modules need enabling) live in vars/<os_family>.yml rather than in `when:` on
+# every task, so the task list stays single-path and the templates need no
+# conditionals at all.
+- name: Validate apache_state
+  ansible.builtin.assert:
+    that: apache_state in ['present', 'absent']
+    fail_msg: "apache_state must be 'present' or 'absent', got '{{ apache_state }}'"
+    quiet: true
+
+- name: Fail clearly on an unsupported distro
+  ansible.builtin.assert:
+    that: ansible_facts['os_family'] in ['RedHat', 'Debian']
+    fail_msg: >-
+      The apache role supports RedHat and Debian family only;
+      this host reports os_family={{ ansible_facts['os_family'] }}.
+    quiet: true
+
+- name: Load OS-family variables
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] }}.yml"
+
+- name: Install and configure Apache
+  ansible.builtin.import_tasks: install.yml
+  when: apache_state == 'present'
+
+- name: Remove Apache
+  ansible.builtin.import_tasks: remove.yml
+  when: apache_state == 'absent'

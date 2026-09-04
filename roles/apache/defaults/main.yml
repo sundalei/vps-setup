@@ -1,0 +1,11 @@
+---
+# present -> install and configure;
+# absent -> stop and remove.
+# Certificates under /etc/letsencrypt are never deleted:
+# Let's Encrypt rate limits issuance, so throwing them away is expensive to undo.
+apache_state: present
+
+apache_sites: >-
+  {{ [{'name': 'kibana', 'domain': kibana_domain, 'template': 'kibana-vhost.conf.j2'}]
+     + ([{'name': 'es', 'domain': es_domain, 'template': 'es-vhost.conf.j2'}]
+         if expose_elasticsearch | default (false) else [])}}

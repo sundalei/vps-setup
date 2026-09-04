@@ -21,8 +21,8 @@ kibana_port: 5601
 # JVM heap per node
 es_heap: 1g
 
-# Public hostnames - their A records must point at kibana hosts
-kibana_domain: "kibana.sundalei.tech"
+# Public hostname per Kibana node lives in host_vars/<host>.yml (kibana_domain)
+expose_elasticsearch: true
 
 # Where certs/keystores live
 es_cert_dir: "/etc/elasticsearch/certs"

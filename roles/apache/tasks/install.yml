@@ -1,0 +1,64 @@
+---
+# Two-phase setup to prevent bootstrap errors:
+# Step 1: Serve port 80 to pass ACME domain validation.
+# Step 2: Fetch certs, then enable HTTPS (:443).
+# (Ansible manages all vhost configs; Certbot only fetches certificates).
+
+- name: Install Apache
+  ansible.builtin.package:
+    name: "{{ apache_packages }}"
+    state: present
+
+# Debian ships proxy/rewrite/ssl disabled. Skipped on RHEL, where the list is empty.
+- name: Enable required Apache modules (Debian)
+  community.general.apache2_module:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ apache_modules }}"
+  notify: Restart apache
+
+# Allow Apache to reverse-proxy traffic to Kibana (:5601); without this,
+# SELinux on RHEL blocks outbound connections and causes 503 errors.
+- name: Allow httpd outbound connections (SELinux)
+  ansible.posix.seboolean:
+    name: httpd_can_network_connect
+    state: true
+    persistent: true
+  when:
+    - ansible_facts['os_family'] == 'RedHat'
+    - ansible_facts['selinux'].status | default('disabled') == 'enabled'
+
+- name: Open http/https (firewalld)
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: [http, https]
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Open http/https (ufw)
+  community.general.ufw:
+    rule: allow
+    name: "{{ item }}"
+  loop: ['Apache Full']
+  when: ansible_facts['os_family'] == 'Debian'
+
+# On RHEL-family distros, Certbot and its Apache authenticator plugin (python3-certbot-apache)
+# are not in base repositories and must be installed from EPEL.
+- name: Install EPEL (RedHat)
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Install certbot
+  ansible.builtin.package:
+    name: "{{ apache_certbot_packages }}"
+    state: present
+
+# --- Phase 1: Bootstrap vhosts (HTTP if certs are missing, HTTPS if already present)
+- name: Check for existing certificates
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+  loop: "{{ apache_sites }}"

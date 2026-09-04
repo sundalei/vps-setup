@@ -26,3 +26,10 @@
   roles:
     - role: kibana
       tags: [kibana]
+
+- name: Public reverse proxy and TLS
+  hosts: web_proxy
+  become: true
+  roles:
+    - role: apache
+      tags: [apache, proxy]

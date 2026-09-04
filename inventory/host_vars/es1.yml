@@ -13,3 +13,7 @@ wg_public_endpoint: "187.77.1.89" # this node's PUBLIC ip (peer dials this)
 
 es_node_name: "es1"
 es_cert_authority: true # transport CA + all node certs are generated here
+
+# Public hostname for Kibana on this node (A record must point here)
+kibana_domain: "kibana.sundalei.tech"
+es_domain: "es.sundalei.tech"
