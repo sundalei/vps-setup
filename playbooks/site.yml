@@ -1,6 +1,9 @@
 ---
 # Everything, in dependency order. Individual projects can be run on their own:
 #   ansible-playbook playbooks/docker.yml
+- name: Bootstrap
+  ansible.builtin.import_playbook: bootstrap.yml
+
 - name: Baseline
   ansible.builtin.import_playbook: base.yml
 

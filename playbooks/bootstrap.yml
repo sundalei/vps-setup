@@ -1,0 +1,25 @@
+---
+# Runs as root to create {{ admin_user }}. Every later play connects as that user.
+- name: Bootstrap the admin user
+  hosts: vps
+  gather_facts: false
+  become: false
+  vars:
+    ansible_user: "{{ bootstrap_user }}"
+  tasks:
+    - name: Probe for root SSH access
+      ansible.builtin.raw: "true"
+      register: bootstrap_probe
+      changed_when: false
+      ignore_unreachable: true
+      ignore_errors: true
+
+    - name: Create the admin account
+      when: bootstrap_probe is not unreachable
+      block:
+        - name: Gather facts
+          ansible.builtin.setup:
+
+        - name: Apply the bootstrap role
+          ansible.builtin.include_role:
+            name: bootstrap

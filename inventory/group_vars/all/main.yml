@@ -5,6 +5,9 @@ elastic_stack_version: "9.4.4"
 
 cluster_name: "sundalei-es"
 
+# Account used only by playbooks/bootstrap.yml, before admin_user exists
+bootstrap_user: "root"
+
 # Admin user created on every host
 admin_user: "dalei"
 

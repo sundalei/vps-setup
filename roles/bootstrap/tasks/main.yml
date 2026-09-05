@@ -1,0 +1,48 @@
+---
+- name: Refuse to run without an SSH key
+  ansible.builtin.assert:
+    that:
+      - admin_ssh_public_key is defined
+      - admin_ssh_public_key | length > 0
+    fail_msg: "admin_ssh_public_key must be set in vault before bootstrapping."
+    quiet: true
+
+- name: Ensure sudo is installed
+  ansible.builtin.package:
+    name: sudo
+    state: present
+
+- name: Set admin group per OS family
+  ansible.builtin.set_fact:
+    bootstrap_admin_group: "{{ 'wheel' if ansible_facts['os_family'] == 'RedHat' else 'sudo' }}"
+
+- name: Ensure the admin group exists
+  ansible.builtin.group:
+    name: "{{ bootstrap_admin_group }}"
+    state: present
+
+- name: Create the admin user
+  ansible.builtin.user:
+    name: "{{ admin_user }}"
+    groups: ["{{ bootstrap_admin_group }}"]
+    append: true
+    shell: /bin/bash
+    create_home: true
+    state: present
+    password: "{{ admin_password }}"
+
+- name: Deploy admin user SSH public key
+  ansible.posix.authorized_key:
+    user: "{{ admin_user }}"
+    key: "{{ admin_ssh_public_key }}"
+    manage_dir: true
+    exclusive: true
+
+- name: Grant passwordless sudo via a validated drop-in
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/{{ admin_user }}"
+    content: "{{ admin_user }} ALL=(ALL) NOPASSWD: ALL\n"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "visudo -cf %s"
