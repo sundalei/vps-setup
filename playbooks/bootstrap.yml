@@ -23,3 +23,17 @@
         - name: Apply the bootstrap role
           ansible.builtin.include_role:
             name: bootstrap
+
+- name: Verify the admin user can connect and escalate
+  hosts: vps
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Confirm sudo works as {{ admin_user }}
+      ansible.builtin.command: id -u
+      register: bootstrap_id
+      changed_when: false
+
+    - name: Debug
+      ansible.builtin.debug:
+        var: bootstrap_id
