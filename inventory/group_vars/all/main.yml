@@ -26,6 +26,7 @@ es_heap: 1g
 
 # Public hostname per Kibana node lives in host_vars/<host>.yml (kibana_domain)
 expose_elasticsearch: true
+apache_certbot_email: "sundalei1988@gmail.com"
 
 # Where certs/keystores live
 es_cert_dir: "/etc/elasticsearch/certs"

@@ -1,0 +1,19 @@
+---
+# Renders the :80 vhosts and make sure Apache is actually answering on them.
+#
+# Included TWICE by main.yml: once before certbot (no certs -> plain :80, which
+# is what the http-01 challenge needs) and once after (certs present -> the
+# template adds the redirect to :443). Both passes are idempotent, so on an
+# already-converged host the second pass reports no change.
+
+- name: Check which domains already have a certificate
+  ansible.builtin.stat:
+    path: "{{ apache_le_live_dir }}/{{ item.domain }}/fullchain.pem"
+  loop: "{{ apache_sites }}"
+  loop_control:
+    label: "{{ item.domain }}"
+  register: apache_cert_stat
+
+- name: Debug
+  ansible.builtin.debug:
+    var: apache_cert_stat

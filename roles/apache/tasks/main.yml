@@ -5,6 +5,14 @@
 # modules need enabling) live in vars/<os_family>.yml rather than in `when:` on
 # every task, so the task list stays single-path and the templates need no
 # conditionals at all.
+#
+# Bootstrapping order matters. A :443 vhost that points at a certificate which
+# does not exist yet stops Apache from starting at all, and certbot's http-01
+# challenge needs Aapache already serving :80. So:
+#   install  -> packages, modules, firewall
+#   vhosts   -> :80 vhosts only, Apache up and answering
+#   certbot  -> issue anything missing over the webroot
+#   tls      -> re-render :80 (now with redirects)
 - name: Validate apache_state
   ansible.builtin.assert:
     that: apache_state in ['present', 'absent']
@@ -22,9 +30,33 @@
 - name: Load OS-family variables
   ansible.builtin.include_vars: "{{ ansible_facts['os_family'] }}.yml"
 
-- name: Install and configure Apache
-  ansible.builtin.import_tasks: install.yml
+- name: Configure Apache
   when: apache_state == 'present'
+  block:
+    - name: Require a contact address for Let's Encrypt
+      ansible.builtin.assert:
+        that:
+          - apache_certbot_email is defined
+          - apache_certbot_email | length > 0
+        fail_msg: "apache_certbot_email must be set (expiry notices + ACME account)."
+        quiet: true
+
+    - name: Every site needs a resolvable domain
+      ansible.builtin.assert:
+        that:
+          - item.domain is defined
+          - item.domain | length > 0
+        fail_msg: "Site '{{ item.name }}' has no domain. Set it in host_vars/{{ inventory_hostname }}.yml."
+        quiet: true
+      loop: "{{ apache_sites }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Install and configure Apache
+      ansible.builtin.import_tasks: install.yml
+
+    - name: Render HTTP vhosts and bring Apache up
+      ansible.builtin.include_tasks: vhosts.yml
 
 - name: Remove Apache
   ansible.builtin.import_tasks: remove.yml

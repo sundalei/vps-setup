@@ -1,8 +1,5 @@
 ---
-# Two-phase setup to prevent bootstrap errors:
-# Step 1: Serve port 80 to pass ACME domain validation.
-# Step 2: Fetch certs, then enable HTTPS (:443).
-# (Ansible manages all vhost configs; Certbot only fetches certificates).
+# Packages, modules, SELinux and firewall. No vhost here -- see vhosts.yml.
 
 - name: Install Apache
   ansible.builtin.package:
@@ -10,6 +7,7 @@
     state: present
 
 # Debian ships proxy/rewrite/ssl disabled. Skipped on RHEL, where the list is empty.
+# Loading a module needs a full restart; a reload will not pick it up.
 - name: Enable required Apache modules (Debian)
   community.general.apache2_module:
     name: "{{ item }}"
@@ -40,12 +38,10 @@
 - name: Open http/https (ufw)
   community.general.ufw:
     rule: allow
-    name: "{{ item }}"
-  loop: ['Apache Full']
+    name: "Apache Full"
   when: ansible_facts['os_family'] == 'Debian'
 
-# On RHEL-family distros, Certbot and its Apache authenticator plugin (python3-certbot-apache)
-# are not in base repositories and must be installed from EPEL.
+# On RHEL-family distros, Certbot is not in base repositories and must come from EPEL.
 - name: Install EPEL (RedHat)
   ansible.builtin.dnf:
     name: epel-release
@@ -57,8 +53,34 @@
     name: "{{ apache_certbot_packages }}"
     state: present
 
-# --- Phase 1: Bootstrap vhosts (HTTP if certs are missing, HTTPS if already present)
-- name: Check for existing certificates
-  ansible.builtin.debug:
-    msg: "{{ item }}"
-  loop: "{{ apache_sites }}"
+# Shared by every vhost. Certbot writes the challenge token here and Apache
+# serves it over plain :80; nothing else is ever served from this tree.
+- name: Create the ACME webroot
+  ansible.builtin.file:
+    path: "{{ apache_acme_webroot }}/.well-known/acme-challenge"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# The certbot package usually creates this, but not on every distro/version.
+- name: Ensure the renewal hook directory exists
+  ansible.builtin.file:
+    path: /etc/letsencrypt/renewal-hooks/deploy
+    owner: root
+    group: root
+    state: directory
+    mode: "0755"
+
+# Certbot's own systemd timer handlers renewal, but it has no idea Apache is
+# holding the old certificate open. This hook fires only on successful renewal.
+- name: Install the renewal reload hook
+  ansible.builtin.copy:
+    dest: /etc/letsencrypt/renewal-hooks/deploy/10-reload-apache.sh
+    content: |
+      #!/bin/sh
+      # Ansible managed. Runs after certbot renewals any certificate on this host.
+      systemctl reload {{ apache_service }}
+    owner: root
+    group: root
+    mode: "0755"

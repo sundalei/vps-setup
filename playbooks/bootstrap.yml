@@ -12,7 +12,6 @@
       register: bootstrap_probe
       changed_when: false
       ignore_unreachable: true
-      ignore_errors: true
 
     - name: Create the admin account
       when: bootstrap_probe is not unreachable
@@ -33,7 +32,4 @@
       ansible.builtin.command: id -u
       register: bootstrap_id
       changed_when: false
-
-    - name: Debug
-      ansible.builtin.debug:
-        var: bootstrap_id
+      failed_when: bootstrap_id.stdout | int != 0

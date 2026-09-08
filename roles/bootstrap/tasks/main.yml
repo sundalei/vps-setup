@@ -7,6 +7,12 @@
     fail_msg: "admin_ssh_public_key must be set in vault before bootstrapping."
     quiet: true
 
+- name: Update apt cache (Debian)
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  when: ansible_facts['os_family'] == 'Debian'
+
 - name: Ensure sudo is installed
   ansible.builtin.package:
     name: sudo

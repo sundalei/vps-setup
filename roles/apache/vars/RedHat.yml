@@ -4,4 +4,4 @@ apache_packages: [httpd, mod_ssl]
 apache_service: httpd
 # proxy, rewrite and ssl are compiled in / loaded by the stock config.
 apache_modules: []
-apache_certbot_packages: [certbot, python3-certbot-apache]
+apache_certbot_packages: [certbot]

@@ -1,4 +1,12 @@
 ---
+# Handlers run in DEFINITION order, not notification order. Restart is defined
+# first so that if a run both loads a new module and changes a vhost, the
+# restart happens first and the reload after it is a cheap no-op
+- name: Restart apache
+  ansible.builtin.systemd:
+    name: "{{ apache_service }}"
+    state: restarted
+
 - name: Reload apache
   ansible.builtin.systemd:
     name: "{{ apache_service }}"
