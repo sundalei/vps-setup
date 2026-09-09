@@ -1,0 +1,36 @@
+---
+# Issue any certificate that is still missing.
+#
+# --webroot, not --apache; the apache authenticator edits vhost files to insert
+# its challenge config, which would fight the templates this role owns. Webroot
+# only writes a token file under {{ apache_acme_webroot }} and leaves the config
+# alone
+#
+# Requires public DNS for each domain to already point at this host. There is no
+# way around that -- http-01 validation is Let's Encrypt fetching the token from
+# the address the A record resolves to.
+
+- name: Request missing certificates
+  ansible.builtin.command:
+    argv:
+      - certbot
+      - certonly
+      - --webroot
+      - --webroot-path
+      - "{{ apache_acme_webroot }}"
+      - -d
+      - "{{ item.domain }}"
+      - --non-interactive
+      - --agree-tos
+      - --email
+      - "{{ apache_certbot_email }}"
+      - --keep-until-expiring
+      - --cert-name
+      - "{{ item.domain }}"
+      - "{{ '--staging' if apache_certbot_staging | bool else '--no-eff-email' }}"
+  loop: "{{ apache_sites }}"
+  loop_control:
+    label: "{{ item.domain }}"
+  when: item.domain not in apache_certs_present
+  # Guarded by `when`; if it ran at all, a certificate was written.
+  changed_when: true

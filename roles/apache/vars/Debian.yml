@@ -8,3 +8,8 @@ apache_modules: [proxy, proxy_http, proxy_wstunnel, ssl, rewrite, headers]
 # webroot authenticator only: python3-certbot-apache would rewrite the vhosts
 # Ansible owns, so it is deliberately not installed.
 apache_certbot_packages: [certbot]
+
+apache_vhost_dir: /etc/apache2/sites-available
+apache_vhost_enabled_dir: /etc/apache2/sites-enabled
+apache_log_dir: /var/log/apache2
+apache_config_test: apache2ctl configtest

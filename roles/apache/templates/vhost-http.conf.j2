@@ -1,0 +1,29 @@
+# Managed by Ansible - do not edit by hand #
+# {{ site.name }} :80 ({{ site.domain }})
+<VirtualHost *:80>
+    ServerName {{ site.domain }}
+
+    # ACME http-01 challenge. This stays reachable over plain HTTP even after
+    # the redirect below is active -- renew every 60 days depends on it.
+    Alias /.well-known/acme-challenge/ {{ apache_acme_webroot }}/.well-known/acme-challenge/
+    <Directory {{ apache_acme_webroot }}/.well-known/acme-challenge>
+        Options None
+        AllowOverride None
+        Require all granted
+    </Directory>
+
+{% if site.domain in apache_certs_present %}
+    # Everything except the challenge path goes to HTTPS.
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} !^/\.well-known/acme-challenge/
+    RewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URI} [END,NE,R=permanent]
+{% else %}
+    # No certificate yet. Serving only the challenge path until certbot runs.
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} !^/\.well-known/acme-challenge/
+    RewriteRule ^ - [R=503,L]
+{% endif %}
+
+    ErrorLog {{ apache_log_dir }}/{{ site.name }}-http-error.log
+    CustomLog {{ apache_log_dir }}/{{ site.name }}-http-access.log combined
+</VirtualHost>

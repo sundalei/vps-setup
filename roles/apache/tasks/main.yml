@@ -58,6 +58,12 @@
     - name: Render HTTP vhosts and bring Apache up
       ansible.builtin.include_tasks: vhosts.yml
 
+    - name: Obtain certificates
+      ansible.builtin.import_tasks: letsencrypt.yml
+
+    - name: Render HTTPS vhosts
+      ansible.builtin.import_tasks: tls.yml
+
 - name: Remove Apache
   ansible.builtin.import_tasks: remove.yml
   when: apache_state == 'absent'

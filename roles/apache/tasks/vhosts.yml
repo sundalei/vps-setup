@@ -14,6 +14,82 @@
     label: "{{ item.domain }}"
   register: apache_cert_stat
 
-- name: Debug
-  ansible.builtin.debug:
-    var: apache_cert_stat
+# Rebuild this list on every pass so re-including this file refreshes the
+# result instead of carrying stale domains forward. Only domains whose
+# fullchain.pem exists are kept, and the result is stored as a clean list of
+# hostnames for later conditional checks.
+- name: Record which domains have a certificate
+  ansible.builtin.set_fact:
+    apache_certs_present: >-
+      {{ apache_cert_stat.results
+         | selectattr('stat.exists')
+         | map(attribute='item.domain') | list }}
+
+- name: Render the HTTP vhosts
+  ansible.builtin.template:
+    src: vhost-http.conf.j2
+    dest: "{{ apache_vhost_dir }}/{{ item.name }}-http.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ apache_sites }}"
+  loop_control:
+    loop_var: item
+    label: "{{ item.domain }}"
+  vars:
+    site: "{{ item }}"
+  notify: Reload apache
+
+# RHEL includes conf.d/*.conf directly, so apache_vhost_enabled_dir is empty
+# there and this whole task is skipped
+- name: Enable the HTTP vhosts (Debian)
+  ansible.builtin.file:
+    src: "{{ apache_vhost_dir }}/{{ item.name }}-http.conf"
+    dest: "{{ apache_vhost_enabled_dir }}/{{ item.name }}-http.conf"
+    state: link
+  loop: "{{ apache_sites }}"
+  loop_control:
+    label: "{{ item.domain }}"
+  when: apache_vhost_enabled_dir | length > 0
+  notify: Reload apache
+
+# A vhost fragment cannot be validated on its own (`httpd -t -f <file>` treats it
+# as the whole server config and chokes on the missing LoadModule lines), so the
+# check has to be a full-config test after everything is in place.
+- name: Validate the full Apache configuration
+  ansible.builtin.command: "{{ apache_config_test }}"
+  changed_when: false
+
+- name: Enable and start Apache
+  ansible.builtin.systemd:
+    name: "{{ apache_service }}"
+    enabled: true
+    state: started
+
+# certbot is about to hit :80 on this host. Any pending restart/reload has to
+# land before that, not at the end of the play.
+- name: Apply pending Apache restarts now
+  ansible.builtin.meta: flush_handlers
+
+# flush_handlers above only fires what a task actually notified, and every task
+# in this file is idempotent. So a host whose vhosts are correct ON DISK but
+# whose running Apache predates them notifies nothing, reloads nothing, and
+# keeps serving stale config -- certbot then validates against that and 404s,
+# on every run, forever. The role cannot repair this via handlers because there
+# is nothing left to report `changed`.
+#
+# Restarting unconditionally closes the hole, but only on the runs that are
+# about to request a certificate: that is exactly when :80 has to be serving
+# the current vhosts. A fully converged host issues nothing and restarts
+# nothing, so this stays free in steady state.
+- name: Restart Apache so certbot validates against the vhosts on disk
+  ansible.builtin.systemd:
+    name: "{{ apache_service }}"
+    state: restarted
+  when: apache_sites | map(attribute='domain') | list | difference(apache_certs_present) | length > 0
+
+- name: Wait for Apache to answer on port 80
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: 80
+    timeout: 30

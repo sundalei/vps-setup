@@ -5,6 +5,14 @@
 # Let's Encrypt rate limits issuance, so throwing them away is expensive to undo.
 apache_state: present
 
+# Contact address Let's Encrypt uses for expiry warnings. No default on purpose:
+# main.yml asserts it, so a missing value fails on task 1 rather than at issuance.
+# apache_certbot_email: "you@example.com"
+
+# Point at the staging CA while iterating. Staging certs are untrusted by browsers
+# but are not rate limited, so a broken vhost costs nothing
+apache_certbot_staging: false
+
 # Webroot served on :80 for the ACME http-01 challenge. Shared by every vhost.
 apache_acme_webroot: /var/www/letsencrypt
 

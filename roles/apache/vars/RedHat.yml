@@ -5,3 +5,10 @@ apache_service: httpd
 # proxy, rewrite and ssl are compiled in / loaded by the stock config.
 apache_modules: []
 apache_certbot_packages: [certbot]
+
+# RHEL has no sites-available/sites-enabled split: conf.d/*.conf is Included
+# directly, so there is nothing to symlink
+apache_vhost_dir: /etc/httpd/conf.d
+apache_vhost_enabled_dir: ""
+apache_log_dir: /var/log/httpd
+apache_config_test: httpd -t
