@@ -19,6 +19,8 @@ apache_acme_webroot: /var/www/letsencrypt
 # Where certbot deposites fullchain.pem / privatekey.pem
 apache_le_live_dir: /etc/letsencrypt/live
 
+apache_hsts_max_age: 31536000
+
 # Each site: name (file prefix), domain (ServerName + cert CN), backend
 # (host:port the proxy forwards to), websockets (add the ws:// upgrade rule).
 apache_sites: >-

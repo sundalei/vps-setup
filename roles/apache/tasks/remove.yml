@@ -1,0 +1,50 @@
+---
+# Tear down the proxy. Deliberately NOT removed:
+#   - /etc/letsencrypt    Let's Encrypt rates limits issuance (5 duplicate certs per domain per week),
+#                         so re-running this role after an accidental `absent` would be expensive.
+#   - the Apache package  Removing it drags mod_ssl and dependents with it on RHEL. Stopping the service
+#                         is enough to free :80/:443
+- name: Stop and disable Apache
+  ansible.builtin.systemd:
+    name: "{{ apache_service }}"
+    enabled: false
+    state: stopped
+  failed_when: false
+
+- name: Remove the vhost files
+  ansible.builtin.file:
+    path: "{{ apache_vhost_dir }}/{{ item.0.name }}-{{ item.1 }}.conf"
+    state: absent
+  loop: "{{ apache_sites | product(['http', 'tls']) | list }}"
+  loop_control:
+    label: "{{ item.0.name }}-{{ item.1 }}"
+
+- name: Remove the vhost symlinks (Debian)
+  ansible.builtin.file:
+    path: "{{ apache_vhost_enabled_dir }}/{{ item.0.name }}-{{ item.1 }}.conf"
+    state: absent
+  loop: "{{ apache_sites | product(['http', 'tls']) | list }}"
+  loop_control:
+    label: "{{ item.0.name }}-{{ item.1 }}"
+  when: apache_vhost_enabled_dir | length > 0
+
+- name: Remove the renew reload hook
+  ansible.builtin.file:
+    path: /etc/letsencrypt/renewal-hooks/deploy/10-reload-apache.sh
+    state: absent
+
+- name: Close http/https (firewalld)
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: disabled
+  loop: [http, https]
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Close http/https (ufw)
+  community.general.ufw:
+    rule: allow
+    name: "Apache Full"
+    delete: true
+  when: ansible_facts['os_family'] == 'Debian'

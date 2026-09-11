@@ -6,6 +6,23 @@
     name: "{{ apache_packages }}"
     state: present
 
+# RHEL's mod_ssl ships conf.d/ssl.conf hard-coded to /etc/pki/tls/certs/localhost.crt
+# and generates that pair from its %post scriptlet. conf.d/*.conf is Included
+# unconditionally, so if the pair is ever absent -- a minimal image that skipped
+# the scriptlet, or anything that cleans /etc/pki -- `httpd -t` fails on a file
+# this role never wrote, and Apache refuses to start AT ALL. That is not a
+# degraded TLS story, it takes :80 down with it.
+#
+# httpd-ssl-gencerts is the distro's own helper for exactly this (it shells out
+# to sscg). `creates:` makes it a no-op once the certificate is in place, so this
+# only ever fires on a host that is genuinely missing it.
+- name: Ensure the distro default SSL certificate exists (RedHat)
+  ansible.builtin.command:
+    cmd: /usr/libexec/httpd-ssl-gencerts
+    creates: /etc/pki/tls/certs/localhost.crt
+  when: ansible_facts['os_family'] == 'RedHat'
+  notify: Restart apache
+
 # Debian ships proxy/rewrite/ssl disabled. Skipped on RHEL, where the list is empty.
 # Loading a module needs a full restart; a reload will not pick it up.
 - name: Enable required Apache modules (Debian)

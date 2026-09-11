@@ -1,0 +1,66 @@
+---
+# Phase 2. Certificates now exist, so:
+#   1. re-run vhosts.yml -- refreshes apache_certs_present and re-renders the
+#      :80 vhosts, which this time include the redirect to :443
+#   2. add the :443 vhosts that do the actual proxying
+#
+# A :443 vhost is only written for a domain whose certificate is on disk. That
+# matters on RHEL, where conf.d/*.conf is included unconditionally: a vhost
+# pointing at a missing SSLCertificateFile stops httpd from starting at all.
+
+- name: Re-render HTTP vhosts now that certificates exist
+  ansible.builtin.include_tasks: vhosts.yml
+
+- name: Render the HTTPs vhosts
+  ansible.builtin.template:
+    src: "vhost-tls.conf.j2"
+    dest: "{{ apache_vhost_dir }}/{{ item.name }}-tls.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ apache_sites }}"
+  loop_control:
+    loop_var: item
+    label: "{{ item.domain }}"
+  vars:
+    site: "{{ item }}"
+  when: item.domain in apache_certs_present
+  notify: Reload apache
+
+# RHEL includes conf.d/*.conf directly, so apache_vhost_enabled_dir is empty
+# there and this whole task is skipped
+- name: Enable the HTTP vhosts (Debian)
+  ansible.builtin.file:
+    src: "{{ apache_vhost_dir }}/{{ item.name }}-tls.conf"
+    dest: "{{ apache_vhost_enabled_dir }}/{{ item.name }}-tls.conf"
+    state: link
+  loop: "{{ apache_sites }}"
+  loop_control:
+    label: "{{ item.domain }}"
+  when: apache_vhost_enabled_dir | length > 0
+  notify: Reload apache
+
+- name: Validate the full Apache configuration
+  ansible.builtin.command: "{{ apache_config_test }}"
+  changed_when: false
+
+- name: Apply the new TLS configuration
+  ansible.builtin.meta: flush_handlers
+
+- name: Verify each site answers over TLS
+  ansible.builtin.uri:
+    url: "https://{{ item.domain }}/"
+    method: GET
+    # Kibana redirects to /app/home and ES answers 401 without credentials.
+    # Anything in this set means the proxy chain is woring end to end.
+    status_code: [200, 302, 401]
+    # Staging certificates are signed by an untrusted CA by design.
+    validate_certs: "{{ not (apache_certbot_staging | bool) }}"
+  loop: "{{ apache_sites }}"
+  loop_control:
+    label: "{{ item.domain }}"
+  when: item.domain in apache_certs_present
+  register: apache_site_check
+  until: apache_site_check is succeeded
+  retries: 6
+  delay: 10

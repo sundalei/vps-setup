@@ -1,0 +1,41 @@
+# Managed by Ansible - do not edit by hand #
+# {{ site.name }} :443 -> {{ site.backend }} ({{ site.domain }})
+<VirtualHost *:443>
+    ServerName {{ site.domain }}
+
+    SSLEngine on
+    SSLCertificateFile     {{ apache_le_live_dir}}/{{ site.domain }}/fullchain.pem
+    SSLCertificateKeyFile  {{ apache_le_live_dir}}/{{ site.domain }}/privkey.pem
+
+    # HSTS: tell browsers to remember that this domain (and subdomains) must use HTTPS
+    # for the next max-age seconds. After that timeout expires, the browser forgets the policy
+    # unless the site sends the header again on a future HTTPS response.
+    Header always set Strict-Transport-Security "max-age={{ apache_hsts_max_age }}; includeSubDomains"
+    # Prevent browsers from guessing a response's MIME type and interpreting it incorrectly.
+    Header always set X-Content-Type-Options "nosniff"
+    # Only send the origin (not the full URL path) as the referrer to other sites.
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # This host is a reverse proxy only. ProxyRequests On would make it an open
+    # forward proxy -- it is off by default, set explicitly so nobody wonders.
+    ProxyRequests off
+    # Preserve the original Host header so upstream apps see the public hostname.
+    ProxyPreserveHost On
+    # The backend is on loopback, so it cannot see the original schema.
+    RequestHeader set X-Forwarded-Proto "https"
+
+{% if site.websockets | default(false) %}
+    # Kibana upgrades to websockets for live tails and some visualisations.
+    # This rule has to come before ProxyPass or the upgrade never happens.
+    RewriteEngine On
+    RewriteCond %{HTTP:Upgrade} =websocket [NC]
+    RewriteCond %{HTTP:Connection} upgrade [NC]
+    RewriteRule ^/?(.*) ws://{{ site.backend }}/$1 [P,L]
+{% endif %}
+
+    ProxyPass / http://{{ site.backend }}/
+    ProxyPassReverse / http://{{ site.backend }}/
+
+    ErrorLog {{ apache_log_dir }}/{{ site.name }}-tls-error.log
+    CustomLog {{ apache_log_dir }}/{{ site.name }}-tls-access.log combined
+</VirtualHost>
