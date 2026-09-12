@@ -133,7 +133,7 @@
 - name: Install this node's cert
   ansible.builtin.copy:
     dest: "{{ es_cert_dir }}/node.crt"
-    content: "{{ hostvars[ca_host].es_node_crt[es_node_name] }}"
+    content: "{{ hostvars[ca_host].es_node_crt[inventory_hostname] }}"
     owner: root
     group: elasticsearch
     mode: "0640"
@@ -142,7 +142,7 @@
 - name: Install this node's key
   ansible.builtin.copy:
     dest: "{{ es_cert_dir }}/node.key"
-    content: "{{ hostvars[ca_host].es_node_key[es_node_name] }}"
+    content: "{{ hostvars[ca_host].es_node_key[inventory_hostname] }}"
     owner: root
     group: elasticsearch
     mode: "0640"

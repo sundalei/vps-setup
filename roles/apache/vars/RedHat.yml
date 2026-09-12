@@ -1,6 +1,6 @@
 ---
 # Apache facts for the RHEL family
-apache_packages: [httpd, mod_ssl]
+apache_packages: [httpd, mod_ssl, mod_http2]
 apache_service: httpd
 # proxy, rewrite and ssl are compiled in / loaded by the stock config.
 apache_modules: []

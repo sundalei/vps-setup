@@ -25,11 +25,11 @@ apache_hsts_max_age: 31536000
 # (host:port the proxy forwards to), websockets (add the ws:// upgrade rule).
 apache_sites: >-
   {{ [{'name': 'kibana',
-       'domain': kibana_domain,
+       'domain': kibana_domain | default(''),
        'backend': "127.0.0.1:" ~ kibana_port,
        'websockets': true}]
      + ([{'name': 'es',
-          'domain': es_domain,
+          'domain': es_domain | default(''),
           'backend': "127.0.0.1:" ~ es_http_port,
           'websockets': false}]
          if expose_elasticsearch | default (false) else []) }}

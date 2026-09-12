@@ -29,7 +29,7 @@
 
 # RHEL includes conf.d/*.conf directly, so apache_vhost_enabled_dir is empty
 # there and this whole task is skipped
-- name: Enable the HTTP vhosts (Debian)
+- name: Enable the TLS vhosts (Debian)
   ansible.builtin.file:
     src: "{{ apache_vhost_dir }}/{{ item.name }}-tls.conf"
     dest: "{{ apache_vhost_enabled_dir }}/{{ item.name }}-tls.conf"
@@ -37,7 +37,9 @@
   loop: "{{ apache_sites }}"
   loop_control:
     label: "{{ item.domain }}"
-  when: apache_vhost_enabled_dir | length > 0
+  when:
+    - apache_vhost_enabled_dir | length > 0
+    - item.domain in apache_certs_present
   notify: Reload apache
 
 - name: Validate the full Apache configuration

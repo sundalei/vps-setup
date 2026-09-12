@@ -27,7 +27,8 @@
       - --keep-until-expiring
       - --cert-name
       - "{{ item.domain }}"
-      - "{{ '--staging' if apache_certbot_staging | bool else '--no-eff-email' }}"
+      - --no-eff-email
+      - "{{ '--staging' if apache_certbot_staging | bool else omit }}"
   loop: "{{ apache_sites }}"
   loop_control:
     label: "{{ item.domain }}"

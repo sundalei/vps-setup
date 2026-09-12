@@ -101,3 +101,9 @@
     owner: root
     group: root
     mode: "0755"
+
+- name: Ensure Certbot renewal timer is active
+  ansible.builtin.systemd:
+    name: "{{ 'certbot-renew.timer' if ansible_facts['os_family'] == 'RedHat' else 'certbot.timer' }}"
+    enabled: true
+    state: started

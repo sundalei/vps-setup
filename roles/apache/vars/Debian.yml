@@ -4,7 +4,7 @@ apache_packages: [apache2]
 apache_service: apache2
 # Debian ships these DISABLED. Without them the vhost parses fine and simply
 # does not proxy -- a silent failure, not an error.
-apache_modules: [proxy, proxy_http, proxy_wstunnel, ssl, rewrite, headers]
+apache_modules: [proxy, proxy_http, proxy_wstunnel, ssl, rewrite, headers, http2]
 # webroot authenticator only: python3-certbot-apache would rewrite the vhosts
 # Ansible owns, so it is deliberately not installed.
 apache_certbot_packages: [certbot]

@@ -3,6 +3,8 @@
 <VirtualHost *:443>
     ServerName {{ site.domain }}
 
+    Protocols h2 http/1.1
+
     SSLEngine on
     SSLCertificateFile     {{ apache_le_live_dir}}/{{ site.domain }}/fullchain.pem
     SSLCertificateKeyFile  {{ apache_le_live_dir}}/{{ site.domain }}/privkey.pem
