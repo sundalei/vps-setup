@@ -1,16 +1,16 @@
 # VPS Infrastructure & Application Automation
 
-Production-grade Ansible automation for provisioning multi-node VPS
-infrastructure with a hardened OS baseline, an encrypted private WireGuard mesh
-network, and an Apache edge reverse proxy with automated Let's Encrypt SSL/TLS
-certificates.
+Ansible automation for provisioning multi-node VPS infrastructure with an OS
+baseline (sysctl, base packages, host firewall), an encrypted private WireGuard
+mesh network, and an Apache edge reverse proxy with automated Let's Encrypt
+SSL/TLS certificates.
 
 The repository is designed to host multiple application stacks—currently
 featuring a 3-node High-Availability (HA) Elasticsearch cluster and Kibana, with
 architecture ready to support additional applications in the future.
 
-Supports **Debian / Ubuntu** and **RedHat / AlmaLinux / Rocky Linux** operating
-systems.
+Written for the **Debian** and **RedHat** OS families. Currently running on
+Ubuntu 26.04, Rocky Linux 10 and CentOS Stream 10.
 
 ---
 
@@ -29,11 +29,11 @@ systems.
 │  - [future applications]     │                  │  - [future applications]     │
 ├──────────────────────────────┤                  ├──────────────────────────────┤
 │ Apache Edge (HTTP/2 + TLS)   │                  │ Apache Edge (HTTP/2 + TLS)   │
-│   │ (127.0.0.1:5601)         │                  │   │ (127.0.0.1:5601)         │
-│   ▼                          │                  │   ▼                          │
-│ Kibana Daemon                │                  │ Kibana Daemon                │
-│   │ (127.0.0.1:9200)         │                  │   │ (127.0.0.1:9200)         │
-│   ▼                          │                  │   ▼                          │
+│   │ kibana.*      │ es.*     │                  │   │ kibana.*      │ es.*     │
+│   ▼ :5601         │          │                  │   ▼ :5601         │          │
+│ Kibana            │          │                  │ Kibana            │          │
+│   │ :9200         │          │                  │   │ :9200         │          │
+│   ▼               ▼ :9200    │                  │   ▼               ▼ :9200    │
 │ Elasticsearch Node 1 (CA)    │                  │ Elasticsearch Node 2         │
 └──────────────┬───────────────┘                  └──────────────┬───────────────┘
                │                                                 │
@@ -51,7 +51,7 @@ systems.
 
 ### Key Topology Highlights
 
-- **Shared Multi-Service Infrastructure**: Baseline system hardening, inter-node
+- **Shared Multi-Service Infrastructure**: A common system baseline, inter-node
   WireGuard encryption, and edge reverse proxying provide the foundational tier
   across all VPS instances. Distinct application services (e.g. Elasticsearch,
   Kibana, and future workloads) bind locally or over the mesh.
@@ -68,7 +68,7 @@ systems.
   by bringing up Apache on port `80` to serve ACME `http-01` challenge tokens,
   obtaining Let's Encrypt certificates via Certbot webroot, and then enabling
   `:443` HTTPS with HTTP/2 and permanent redirects.
-- **Hardened Security**:
+- **Implementation Details**:
   - HTTP/2 multiplexing (`Protocols h2 http/1.1`) for accelerated asset loading.
   - Strict-Transport-Security (HSTS, 1 year), `X-Content-Type-Options: nosniff`,
     and `Referrer-Policy`.
@@ -85,11 +85,11 @@ systems.
 
 Hosts are grouped by functional role in `inventory/hosts.yml`:
 
-| Node    | Public IP       | WireGuard IP | Distro Family   | Groups & Roles                                                            |
-| :------ | :-------------- | :----------- | :-------------- | :------------------------------------------------------------------------ |
-| **es1** | `187.77.1.89`   | `10.10.0.1`  | Debian / RedHat | `vps`, `wireguard_mesh`, `es_cluster` (CA, Node 1), `kibana`, `web_proxy` |
-| **es2** | `31.97.136.158` | `10.10.0.2`  | Debian / RedHat | `vps`, `wireguard_mesh`, `es_cluster` (Node 2), `kibana`, `web_proxy`     |
-| **es3** | `177.7.34.25`   | `10.10.0.3`  | Debian / RedHat | `vps`, `wireguard_mesh`, `es_cluster` (Node 3, Quorum/Data)               |
+| Node    | Public IP       | WireGuard IP | OS                        | Groups & Roles                                                            |
+| :------ | :-------------- | :----------- | :------------------------ | :------------------------------------------------------------------------ |
+| **es1** | `187.77.1.89`   | `10.10.0.1`  | Rocky Linux 10 (RedHat)   | `vps`, `wireguard_mesh`, `es_cluster` (CA, Node 1), `kibana`, `web_proxy` |
+| **es2** | `31.97.136.158` | `10.10.0.2`  | Ubuntu 26.04 (Debian)     | `vps`, `wireguard_mesh`, `es_cluster` (Node 2), `kibana`, `web_proxy`     |
+| **es3** | `177.7.34.25`   | `10.10.0.3`  | CentOS Stream 10 (RedHat) | `vps`, `wireguard_mesh`, `es_cluster` (Node 3, Quorum/Data)               |
 
 ---
 
@@ -160,9 +160,11 @@ ansible-playbook playbooks/site.yml
 
 `site.yml` orchestrates the layers in sequence:
 
-1. **`bootstrap.yml`**: Probes for root SSH access. If available (fresh server),
+1. **`bootstrap.yml`**: Probes for root SSH access. If root can log in,
    provisions the administrative user (`dalei`), installs the SSH public key,
-   and configures validated sudoers. Validates escalation via `id -u`.
+   and configures validated sudoers. Because root login stays enabled, in
+   practice this runs on every invocation (the role is idempotent). Then
+   validates escalation via `id -u`.
 2. **`base.yml`**: Configures kernel parameters (`vm.max_map_count = 262144`),
    refreshes package caches, installs base utilities (`iputils-ping`, `curl`,
    `unzip`), and enables host firewalls with OpenSSH allowed.
@@ -296,18 +298,20 @@ While the current deployment focuses on Elasticsearch and Kibana, the repository
 is structured to support hosting additional applications across the VPS nodes:
 
 1. **Shared Foundation**: Every node joins the `vps` and `wireguard_mesh`
-   groups, providing hardened SSH, sysctl tuning, host firewalls, and private
-   mesh communication (`10.10.0.0/24`).
+   groups, providing an admin user with SSH key access, sysctl tuning, host
+   firewalls, and private mesh communication (`10.10.0.0/24`).
 2. **Adding New Services**:
    - New applications (e.g., Docker containers, custom web applications,
      monitoring stacks) can be deployed via their own role and playbook.
    - Applications can bind locally on `127.0.0.1` or communicate securely across
      nodes over their private WireGuard IPs (`10.10.0.x`).
 3. **Public Exposure via Apache**:
-   - Public-facing services can be registered with the `web_proxy` tier by
-     adding site definitions to `apache_sites` in host variables or group
-     variables, specifying the public domain, loopback backend port, and
-     WebSocket requirements.
+   - Public-facing services are served by the `web_proxy` tier from the
+     `apache_sites` list (`name`, `domain`, `backend`, `websockets` per site),
+     defined in `roles/apache/defaults/main.yml`.
+   - Setting `apache_sites` in host or group variables **replaces** that list
+     rather than adding to it, so the override must also repeat the Kibana and
+     Elasticsearch entries.
 
 ---
 
@@ -315,8 +319,8 @@ is structured to support hosting additional applications across the VPS nodes:
 
 | Layer                       | Implementation                         | Security Control                                                                                                                                                                                                 |
 | :-------------------------- | :------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **SSH Access**              | `bootstrap` role                       | Key-only authentication (`authorized_key` with `exclusive: true`), passwordless sudo restricted via validated drop-in.                                                                                           |
-| **System Firewall**         | `common`, `wireguard`, `elasticsearch` | Default `deny` incoming policy. Explicitly opens port 22, 51820/UDP, 80/TCP, 443/TCP. Port 9300 is firewalled to allow only WireGuard mesh peers.                                                                |
+| **SSH Access**              | `bootstrap` role                       | Admin user logs in with an SSH key (`authorized_key`, `exclusive: true`) and has passwordless sudo via a validated `/etc/sudoers.d/` drop-in. Password and root login stay enabled (image defaults).             |
+| **System Firewall**         | `common`, `wireguard`, `elasticsearch` | Default deny incoming. Opens 22, 51820/UDP, 9300 (mesh peers only), and 80/443 on `web_proxy` nodes. The RedHat images' firewalld zone also allows `cockpit` (9090) and `dhcpv6-client`.                         |
 | **Inter-Node Mesh**         | `wireguard` role                       | Peer-to-peer noise-protocol encryption with persistent keepalive (25s) across public endpoints.                                                                                                                  |
 | **Elasticsearch Transport** | `elasticsearch` role                   | Dedicated internal CA, per-node PEM certificates, Subject Alternative Names (SAN) bound to WireGuard IPs, mutual TLS certificate verification.                                                                   |
 | **Edge Reverse Proxy**      | `apache` role                          | HTTP/2 enabled (`Protocols h2 http/1.1`), HSTS (`max-age=31536000`), MIME sniffing protection (`nosniff`), Referrer Policy (`strict-origin-when-cross-origin`), forward proxying disabled (`ProxyRequests off`). |
@@ -351,8 +355,11 @@ limits (5 duplicate certs per week):
    ansible-playbook playbooks/elasticsearch.yml --tags apache -e apache_certbot_staging=true
    ```
 
-3. Once validated, set `apache_certbot_staging: false` and re-run to obtain
-   production certificates.
+3. Switching to production is not automatic. The role only requests a
+   certificate for a domain that has none, so re-running with
+   `apache_certbot_staging: false` keeps the staging certificate, and the final
+   TLS check then fails because that certificate is untrusted. Replace the
+   certificate with `certbot` by hand before re-running.
 
 ### Checking Cluster Status
 
