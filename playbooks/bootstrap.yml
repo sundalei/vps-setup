@@ -8,6 +8,8 @@
     ansible_user: "{{ bootstrap_user }}"
   tasks:
     - name: Probe for root SSH access
+      # The `true` command is a no-op success check. Using raw avoids
+      # requiring Python on a fresh host while confirming SSH access.
       ansible.builtin.raw: "true"
       register: bootstrap_probe
       changed_when: false
