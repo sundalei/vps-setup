@@ -1,0 +1,8 @@
+---
+# Java dev environment for the admin user: SDKMAN, Java and Maven
+- name: Java Dev environment
+  hosts: vps
+  become: true
+  roles:
+    - role: sdkman
+      tags: [sdkman, java]

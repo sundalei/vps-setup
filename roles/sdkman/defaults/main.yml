@@ -1,0 +1,8 @@
+---
+# What SDKMAN installs for the admin user.
+# name: the SDKMAN candidate. version: the exact identifier from `sdk list <name>`.
+sdkman_candidates:
+  - name: java
+    version: "25.0.4+1-ms"
+  - name: maven
+    version: "3.9.16"

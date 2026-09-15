@@ -18,6 +18,13 @@
     name: sudo
     state: present
 
+# zsh has to exist before the account points at it: sshd runs every command
+# through the login shell, Ansible's included.
+- name: "Install zsh and git"
+  ansible.builtin.package:
+    name: [zsh, git]
+    state: present
+
 - name: Set admin group per OS family
   ansible.builtin.set_fact:
     bootstrap_admin_group: "{{ 'wheel' if ansible_facts['os_family'] == 'RedHat' else 'sudo' }}"
@@ -32,7 +39,7 @@
     name: "{{ admin_user }}"
     groups: ["{{ bootstrap_admin_group }}"]
     append: true
-    shell: /bin/bash
+    shell: /usr/bin/zsh
     create_home: true
     state: present
     password: "{{ admin_password }}"
@@ -52,3 +59,32 @@
     group: root
     mode: "0440"
     validate: "visudo -cf %s"
+
+- name: Install oh-my-zsh for the admin user
+  ansible.builtin.git:
+    repo: https://github.com/ohmyzsh/ohmyzsh.git
+    dest: "~{{ admin_user }}/.oh-my-zsh"
+    version: master
+    depth: 1
+    update: false
+  become: true
+  become_user: "{{ admin_user }}"
+
+- name: Give the admin user the oh-my-zsh .zshrc
+  ansible.builtin.copy:
+    src: "~{{ admin_user }}/.oh-my-zsh/templates/zshrc.zsh-template"
+    dest: "~{{ admin_user }}/.zshrc"
+    remote_src: true
+    force: false # only create the file if it doesn't exist yet
+    mode: "0644"
+  become: true
+  become_user: "{{ admin_user }}"
+
+# Add the user name and hostname to the zsh prompt.
+- name: Show user and host name in the zsh prompt
+  ansible.builtin.lineinfile:
+    path: "~{{ admin_user }}/.zshrc"
+    regexp: '^PROMPT="%n@'
+    line: 'PROMPT="%n@%m $PROMPT"'
+  become: true
+  become_user: "{{ admin_user }}"

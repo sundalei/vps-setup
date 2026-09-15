@@ -12,3 +12,6 @@
 
 - name: Elasticsearch stack
   ansible.builtin.import_playbook: elasticsearch.yml
+
+- name: Java Dev environment
+  ansible.builtin.import_playbook: java.yml

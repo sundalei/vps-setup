@@ -1,0 +1,46 @@
+---
+- name: Update apt cache (Debian)
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  when: ansible_facts['os_family'] == 'Debian'
+
+# The SDKMAN installer stops if one of these tools is missing.
+- name: Install the tools SDKMAN needs
+  ansible.builtin.package:
+    name: [curl, zip, unzip, tar, sed, findutils]
+    state: present
+
+# Run the SDKMAN installer as the admin user.
+# creates: skip this task when SDKMAN is already installed.
+# The installer also adds 3 lines to the end of .zshrc and .bashrc
+- name: Install SDKMAN for the admin user
+  ansible.builtin.shell:
+    cmd: set -o pipefail && curl -fsSL https://get.sdkman.io | zsh
+    executable: /usr/bin/zsh
+    creates: "~{{ admin_user }}/.sdkman/bin/sdkman-init.sh"
+  become: true
+  become_user: "{{ admin_user }}"
+
+# Answer "yes" to SDKMAN questions automatically, so installs do not wait for input.
+- name: Turn on SDKMAN auto-answer
+  ansible.builtin.lineinfile:
+    path: "~{{ admin_user }}/.sdkman/etc/config"
+    regexp: "^sdkman_auto_answer="
+    line: sdkman_auto_answer=true
+  become: true
+  become_user: "{{ admin_user }}"
+
+# sdk is a shell function, so load SDKMAN first, then install.
+# With auto-answer on, the installed version also becomes the default.
+# creates: skip when this version is already installed.
+- name: Install Java and build toolean
+  ansible.builtin.shell:
+    cmd: source ~/.sdkman/bin/sdkman-init.sh && sdk install {{ item.name }} {{ item.version }}
+    executable: /usr/bin/zsh
+    creates: "~{{ admin_user }}/.sdkman/candidates/{{ item.name }}/{{ item.version }}"
+  loop: "{{ sdkman_candidates }}"
+  loop_control:
+    label: "{{ item.name }} {{ item.version }}"
+  become: true
+  become_user: "{{ admin_user }}"
