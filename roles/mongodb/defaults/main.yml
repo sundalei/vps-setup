@@ -1,0 +1,40 @@
+---
+# MongoDB publishes one tarball per platform. There is no generic Linux build,
+# so every OS gets the closest one. Fedora has no build at all, and Ubuntu 26.04
+# does not have one yet, so they use the RHEL 10 and Ubuntu 24.04 builds.
+# To support a new OS: add a line here and its checksum below.
+mongodb_tarball_targets:
+  Fedora-44: rhel10
+  Rocky-10: rhel10
+  AlmaLinux-10: rhel10
+  RedHat-10: rhel10
+  CentOS-10: rhel10
+  Rocky-9: rhel93
+  Ubuntu-26: ubuntu2404
+  Ubuntu-24: ubuntu2404
+  Debian-12: debian12
+
+# sha256 of each server tarball, from https://downloads.mongodb.org/current.json
+mongodb_tarball_sha256:
+  rhel10: dd14cbda4cbdee634d459f88c1cb8e4120f7591495b9334d29e30d35730ba718
+  ubuntu2404: b411be17c31ef249767ed91974d876e007c91afd5f45e1534057d247eada9f0d
+
+# mongosh has one build that runs on every Linux machine.
+mongodb_mongosh_sha256: aa42cb826b7b8e655c5481293f5365ddaf1a23e43af07520326e5bbc957838ad
+
+# Which tarball this host needs. Empty means the OS is not in the list above.
+mongodb_os_key: "{{ ansible_facts['distribution'] }}-{{ ansible_facts['distribution_major_version'] }}"
+mongodb_target: "{{ mongodb_tarball_targets[mongodb_os_key] | default('') }}"
+
+# We install everything ourselves, so these paths are the same on every OS.
+mongodb_user: mongod
+mongodb_group: mongod
+mongodb_data_dir: /var/lib/mongo
+mongodb_log_dir: /var/log/mongodb
+mongodb_service: mongod
+
+# /opt/mongodb and /opt/mongosh always point at the version we want.
+mongodb_install_dir: "/opt/mongodb-linux-x86_64-{{ mongodb_target }}-{{ mongodb_version }}"
+mongodb_link: /opt/mongodb
+mongodb_mongosh_install_dir: "/opt/mongosh-{{ mongodb_mongosh_version }}-linux-x64"
+mongodb_mongosh_link: /opt/mongosh

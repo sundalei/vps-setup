@@ -1,7 +1,7 @@
 ---
 # --- Non-secret configuration (secrets live in vault.yml) ---
 # Pin ALL cluster nodes to the exact same version
-elastic_stack_version: "9.4.4"
+elastic_stack_version: "9.4.5"
 
 cluster_name: "sundalei-es"
 
@@ -30,3 +30,7 @@ apache_certbot_email: "sundalei1988@gmail.com"
 
 # Where certs/keystores live
 es_cert_dir: "/etc/elasticsearch/certs"
+
+# MongoDB. One version for every node.
+mongodb_version: "8.0.32"
+mongodb_mongosh_version: "2.12.0"

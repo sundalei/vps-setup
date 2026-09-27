@@ -1,0 +1,119 @@
+---
+# A package would create the user, the folders and the systemd unit.
+# The tarball contains only the programs, so we do all of that here.
+
+- name: Create the mongod group
+  ansible.builtin.group:
+    name: "{{ mongodb_group }}"
+    system: true
+    state: present
+
+- name: Create the mongod user
+  ansible.builtin.user:
+    name: "{{ mongodb_user }}"
+    group: "{{ mongodb_group }}"
+    system: true
+    shell: /sbin/nologin
+    home: "{{ mongodb_data_dir }}"
+    create_home: false
+    state: present
+
+- name: Create the data and log folders
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ mongodb_user }}"
+    group: "{{ mongodb_group }}"
+    mode: "0750"
+  loop:
+    - "{{ mongodb_data_dir }}"
+    - "{{ mongodb_log_dir }}"
+
+# unarchive needs these two programs on the server.
+- name: Install the tools needed to unpack a tarball
+  ansible.builtin.package:
+    name: [tar, gzip]
+    state: present
+
+- name: Download the MongoDB server tarball
+  ansible.builtin.get_url:
+    url: "https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-{{ mongodb_target }}-{{ mongodb_version }}.tgz"
+    dest: "/usr/local/src/mongodb-linux-x86_64-{{ mongodb_target }}-{{ mongodb_version }}.tgz"
+    owner: root
+    group: root
+    mode: "0644"
+    checksum: "sha256:{{ mongodb_tarball_sha256[mongodb_target] }}"
+
+# No mode on purpose: every file then keeps the permission stored inside the
+# tarball, so binaries stay 755 and text files stay 644.
+# mode: "0755" would make every file executable, even README.
+# mode: "0750" would let only root read and run them, and the mongod service
+# could not start, because it runs as the mongod user.
+# creates: makes this task skip once the folder exists, so owner and group are
+# not applied again on later runs either.
+- name: Unpack the MongoDB server
+  ansible.builtin.unarchive:
+    src: "/usr/local/src/mongodb-linux-x86_64-{{ mongodb_target }}-{{ mongodb_version }}.tgz"
+    dest: /opt
+    remote_src: true
+    owner: root
+    group: root
+    creates: "{{ mongodb_install_dir }}"
+
+# The task above skips once the folder exists, so it stops setting owner and
+# group. This task sets them on every run.
+# It does not touch permissions. If the files were unpacked with a wrong mode
+# before, delete the folder and let the unpack task run again.
+- name: Keep the unpacked files root-owned
+  ansible.builtin.file:
+    path: "{{ mongodb_install_dir }}"
+    state: directory
+    owner: root
+    group: root
+    recurse: true
+
+# This link is the version switch. Moving it is the whole upgrade, and moving it
+# back is the whole rollback.
+- name: Point /opt/mongodb at this version
+  ansible.builtin.file:
+    src: "{{ mongodb_install_dir }}"
+    dest: "{{ mongodb_link }}"
+    state: link
+  notify: Restart mongod
+
+- name: Download mongosh
+  ansible.builtin.get_url:
+    url: "https://downloads.mongodb.com/compass/mongosh-{{ mongodb_mongosh_version }}-linux-x64.tgz"
+    dest: "/usr/local/src/mongosh-{{ mongodb_mongosh_version }}-linux-x64.tgz"
+    owner: root
+    group: root
+    mode: "0644"
+    checksum: "sha256:{{ mongodb_mongosh_sha256 }}"
+
+- name: Unpack mongosh
+  ansible.builtin.unarchive:
+    src: "/usr/local/src/mongosh-{{ mongodb_mongosh_version }}-linux-x64.tgz"
+    dest: /opt
+    remote_src: true
+    owner: root
+    group: root
+    creates: "{{ mongodb_mongosh_install_dir }}"
+
+- name: Point /opt/mongosh at this version
+  ansible.builtin.file:
+    src: "{{ mongodb_mongosh_install_dir }}"
+    dest: "{{ mongodb_mongosh_link }}"
+    state: link
+
+# The MongoDB programs live in /opt, which is not on the PATH.
+# Ansible does not need this file. It runs "/bin/sh -c" and calls the full
+# path, /opt/mongosh/bin/mongosh.
+# A person who logs in does need it. A login shell reads /etc/profile.d, so
+# after this file exists, typing "mongosh" is enough.
+- name: Put MongoDB on the PATH for logins
+  ansible.builtin.copy:
+    dest: /etc/profile.d/mongodb.sh
+    content: "export PATH={{ mongodb_link }}/bin:{{ mongodb_mongosh_link }}/bin:$PATH\n"
+    owner: root
+    group: root
+    mode: "0644"

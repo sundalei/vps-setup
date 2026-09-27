@@ -1,0 +1,24 @@
+---
+# MongoDB needs three things first:
+#   bootstrap.yml  -> creates the dalei user that we log in with
+#   base.yml       -> base packages and the firewall
+#   network.yml    -> WireGuard, because members talk over the tunnel
+# With these imports, this playbook is safe to run on a fresh server.
+- name: Bootstrap
+  ansible.builtin.import_playbook: bootstrap.yml
+
+- name: Baseline
+  ansible.builtin.import_playbook: base.yml
+
+- name: Network
+  ansible.builtin.import_playbook: network.yml
+
+# MongoDB replica set.
+# Run this against the whole mongo_cluster group at once: the member list and the firewall rules are built from the group.
+# WireGuard must be up first, because members talk over the tunnel.
+- name: MongoDB replica set
+  hosts: mongo_cluster
+  become: true
+  roles:
+    - role: mongodb
+      tags: [mongodb, mongo]

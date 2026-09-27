@@ -1,0 +1,27 @@
+---
+# MongoDB replica set built from the official tarballs, reachable only over the WireGuard mesh.
+#
+# We install by hand instead of using packages, so the paths, the user and the systemd unit
+# are the same on every OS. Only the tarball name differs.
+#
+# Order matters:
+#   install    -> user, folders, tarballs, systemd unit. Not started yet.
+#   config     -> keyfile and mongod.conf, so the first start is already correct.
+#   service    -> firewall, then start mongod on every node.
+#   replicaset -> run once: create the replica set, then the admin user.
+- name: Refuse to run on an OS we have no tarball for
+  ansible.builtin.assert:
+    that: mongodb_target | length > 0
+    fail_msg: >-
+      No MongoDB tarball is mapped for {{ mongodb_os_key }}.
+      Add it to mongodb_tarball_targets and add its sha256 to mongodb_tarball_sha256.
+    quiet: true
+
+- name: Refuse to run without a checksum
+  ansible.builtin.assert:
+    that: mongodb_target in mongodb_tarball_sha256
+    fail_msg: "No sha256 for the {{ mongodb_target }} tarball. Add it to mongodb_tarball_sha256."
+    quiet: true
+
+- name: Install MongoDB
+  ansible.builtin.import_tasks: install.yml

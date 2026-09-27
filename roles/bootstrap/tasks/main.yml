@@ -70,21 +70,15 @@
   become: true
   become_user: "{{ admin_user }}"
 
-- name: Give the admin user the oh-my-zsh .zshrc
-  ansible.builtin.copy:
-    src: "~{{ admin_user }}/.oh-my-zsh/templates/zshrc.zsh-template"
-    dest: "~{{ admin_user }}/.zshrc"
-    remote_src: true
-    force: false # only create the file if it doesn't exist yet
-    mode: "0644"
-  become: true
-  become_user: "{{ admin_user }}"
-
-# Add the user name and hostname to the zsh prompt.
-- name: Show user and host name in the zsh prompt
-  ansible.builtin.lineinfile:
+- name: Load oh-my-zsh and set the prompt
+  ansible.builtin.blockinfile:
     path: "~{{ admin_user }}/.zshrc"
-    regexp: '^PROMPT="%n@'
-    line: 'PROMPT="%n@%m $PROMPT"'
+    marker: "# {mark} ANSIBLE MANAGED: oh-my-zsh"
+    insertbefore: "^#THIS MUST BE AT THE END"
+    block: |
+      export ZSH="$HOME/.oh-my-zsh"
+      ZSH_THEME="robbyrussell"
+      source "$ZSH/oh-my-zsh.sh"
+      PROMPT="%n@%m $PROMPT"
   become: true
   become_user: "{{ admin_user }}"

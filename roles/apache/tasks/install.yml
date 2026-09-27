@@ -58,12 +58,15 @@
     name: "Apache Full"
   when: ansible_facts['os_family'] == 'Debian'
 
-# On RHEL-family distros, Certbot is not in base repositories and must come from EPEL.
-- name: Install EPEL (RedHat)
+# Certbot is not in the base repos of RHEL and its clones, so they need EPEL.
+# Fedora is different: certbot is in its own repos, and EPEL does not exist for Fedora.
+- name: Install EPEL (RedHat, not Fedora)
   ansible.builtin.dnf:
     name: epel-release
     state: present
-  when: ansible_facts['os_family'] == 'RedHat'
+  when:
+    - ansible_facts['os_family'] == 'RedHat'
+    - ansible_facts['distribution'] != 'Fedora'
 
 - name: Install certbot
   ansible.builtin.package:
