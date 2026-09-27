@@ -1,0 +1,9 @@
+---
+# daemon_reload picks up changes to the unit file.
+# throttle: 1 restarts one node at a time, so the replica set keeps a primary.
+- name: Restart mongod
+  ansible.builtin.systemd:
+    name: "{{ mongodb_service }}"
+    state: restarted
+    daemon_reload: true
+  throttle: 1
