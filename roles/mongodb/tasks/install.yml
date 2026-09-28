@@ -117,3 +117,13 @@
     owner: root
     group: root
     mode: "0644"
+
+# systemd only knows about mongod once this file exists.
+- name: Install the systemd unit
+  ansible.builtin.template:
+    src: mongod.service.j2
+    dest: /etc/systemd/system/mongod.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart mongod
