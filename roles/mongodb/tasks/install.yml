@@ -127,3 +127,14 @@
     group: root
     mode: "0644"
   notify: Restart mongod
+
+# Log rotation renames the log file regularly and starts a new empty one, so it
+# cannot grow forever. A package would install this config for us. A tarball
+# does not, so we write it.
+- name: Rotate the MongoDB log
+  ansible.builtin.template:
+    src: mongod.logrotate.j2
+    dest: /etc/logrotate.d/mongod
+    owner: root
+    group: root
+    mode: "0644"

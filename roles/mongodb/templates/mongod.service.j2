@@ -1,3 +1,33 @@
 # Managed by Ansible - do not edit by hand #
 [Unit]
 Description=MongoDB Database Server
+# Start mongod only after the network is up and the WireGuard tunnel exists.
+# mongod binds to {{ wg_ip }}, and binding fails if that address is missing.
+After=network-online.target wg-quick@{{ wg_interface }}.service
+Wants=network-online.target wg-quick@{{ wg_interface }}.service
+
+[Service]
+User={{ mongodb_user }}
+Group={{ mongodb_group }}
+ExecStart={{ mongodb_link }}/bin/mongod --config {{ mongodb_conf }}
+Restart=on-failure
+TimeoutStopSec=90
+
+# A limit is a cap the kernel puts on a process. "infinity" means no cap.
+# Example: LimitNOFILE=64000 lets mongod open 64000 files at the same time.
+# The normal cap is about 1024 files, too small for a database. mongod would
+# stop with "too many open files".
+# These are the same numbers MongoDB uses in its own packages.
+
+LimitFSIZE=infinity
+LimitCPU=infinity
+LimitAS=infinity
+LimitMEMLOCK=infinity
+LimitNOFILE=64000
+# raises the maximum number of processes and threads the user (mongod) can create
+LimitNPROC=64000
+TasksMax=infinity
+
+[Install]
+# Start mongod automatically on system boot.
+WantedBy=multi-user.target

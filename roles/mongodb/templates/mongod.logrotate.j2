@@ -1,0 +1,13 @@
+# Managed by Ansible - do not edit by hand #
+# daily + rotate 14: start a new log file every day and keep 14 days.
+# Example: today is mongod.log, yesterday is mongod.log.1.gz
+{{ mongodb_log }} {
+    daily
+    rotate 14
+    compress
+    missingok
+    notifempty
+    # copytruncate keeps the same file open, so mongod needs no signal.
+    copytruncate
+    su {{ mongodb_user }} {{ mongodb_group }}
+}
