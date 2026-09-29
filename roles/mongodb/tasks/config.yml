@@ -1,0 +1,5 @@
+---
+# The keyfile is a shared secret. Members show it to each other to prove they
+# belong to the same replica set.
+# Every member needs the same text, and mongod refuse to start if anyone else
+# can read the file. That is why the mode is 0400 and the owner is mongod.

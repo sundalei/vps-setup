@@ -25,3 +25,6 @@
 
 - name: Install MongoDB
   ansible.builtin.import_tasks: install.yml
+
+- name: Write the configuration
+  ansible.builtin.import_tasks: config.yml
