@@ -3,3 +3,23 @@
 # belong to the same replica set.
 # Every member needs the same text, and mongod refuse to start if anyone else
 # can read the file. That is why the mode is 0400 and the owner is mongod.
+- name: Install the replica set keyfile
+  ansible.builtin.copy:
+    content: "{{ vault_mongodb_keyfile }}"
+    dest: "{{ mongodb_keyfile }}"
+    owner: "{{ mongodb_user }}"
+    group: "{{ mongodb_group }}"
+    mode: "0400"
+  no_log: true
+  notify: Restart mongod
+
+# mongod runs as the mongod user, so it must be able to read its own config.
+# Owner root, group mongod, mode 0640: root writes it, mongod only reads it.
+- name: Render mongod.conf
+  ansible.builtin.template:
+    src: mongod.conf.j2
+    dest: "{{ mongodb_conf }}"
+    owner: root
+    group: "{{ mongodb_group }}"
+    mode: "0640"
+  notify: Restart mongod

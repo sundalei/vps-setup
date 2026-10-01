@@ -1,0 +1,28 @@
+# Managed by Ansible - do not edit by hand #
+storage:
+  dbPath: {{ mongodb_data_dir }}
+
+systemLog:
+  destination: file
+  logAppend: true
+  path: {{ mongodb_log }}
+
+net:
+  port: {{ mongodb_port }}
+  # bindIp lists the addresses mongod listens on. Here: this machine itself, and
+  # its WireGuard address. The public network card is never used, so nobody can
+  # reach MongoDB from the internet.
+  bindIp: 127.0.0.1,{{ wg_ip }}
+
+security:
+  # Members read this file to prove to each other that they belong together.
+  keyFile: {{ mongodb_keyfile }}
+  # Clients must log in. Without this line anyone could read and write.
+  authorization: enabled
+
+replication:
+  # All members share this name. It is how they know they are on set.
+  replSetName: {{ mongodb_replset }}
+
+processManagement:
+  timeZoneInfo: /usr/share/zoneinfo

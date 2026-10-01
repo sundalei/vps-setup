@@ -33,6 +33,7 @@ mongodb_data_dir: /var/lib/mongo
 mongodb_log_dir: /var/log/mongodb
 mongodb_log: /var/log/mongodb/mongod.log
 mongodb_conf: /etc/mongod.conf
+mongodb_keyfile: /var/lib/mongo/keyfile
 mongodb_service: mongod
 
 # /opt/mongodb and /opt/mongosh always point at the version we want.

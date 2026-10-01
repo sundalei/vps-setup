@@ -1,0 +1,46 @@
+---
+# Open port 27017 for other members only, and only on their tunnel addresses.
+# Example: on es1 this allows 10.10.0.2 and 10.10.0.3, nothing else.
+- name: Firewall - allow the MongoDB port only from the peer's tunnel IP (RedHat)
+  ansible.posix.firewalld:
+    rich_rule: "rule family=ipv4 source address={{ hostvars[peer].wg_ip }}/32 port port={{ mongodb_port }} protocol=tcp accept"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ groups['mongo_cluster'] | difference([inventory_hostname]) }}"
+  loop_control:
+    loop_var: peer
+    label: "{{ peer }} ({{ hostvars[peer].wg_ip }})"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Firewall - allow the MongoDB port only from the peer's tunnel IP (Debian)
+  community.general.ufw:
+    rule: allow
+    src: "{{ hostvars[peer].wg_ip }}"
+    port: "{{ mongodb_port }}"
+    proto: tcp
+  loop: "{{ groups['mongo_cluster'] | difference([inventory_hostname]) }}"
+  loop_control:
+    loop_var: peer
+    label: "{{ peer }} ({{ hostvars[peer].wg_ip }})"
+  when: ansible_facts['os_family'] == 'Debian'
+
+# daemon_reload tells systemd to read the unit file we just wrote.
+- name: Enable and start MongoDB
+  ansible.builtin.systemd:
+    name: "{{ mongodb_service }}"
+    state: started
+    enabled: true
+    daemon_reload: true
+
+# Handlers normally wait until the end of the play. Run them now, so the tasks
+# below talk to a mongod that already has the new keyfile and config.
+- name: Apply pending restarts from keyfile or config changes now
+  ansible.builtin.meta: flush_handlers
+
+# Do not go further until mongod answers on its port.
+- name: Wait for the MongoDB port on this node
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ mongodb_port }}"
+    timeout: 120

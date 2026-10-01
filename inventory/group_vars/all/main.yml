@@ -34,3 +34,5 @@ es_cert_dir: "/etc/elasticsearch/certs"
 # MongoDB. One version for every node.
 mongodb_version: "8.0.32"
 mongodb_mongosh_version: "2.12.0"
+mongodb_port: 27017
+mongodb_replset: "rs0"
