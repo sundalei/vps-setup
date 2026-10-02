@@ -41,3 +41,14 @@ mongodb_install_dir: "/opt/mongodb-linux-x86_64-{{ mongodb_target }}-{{ mongodb_
 mongodb_link: /opt/mongodb
 mongodb_mongosh_install_dir: "/opt/mongosh-{{ mongodb_mongosh_version }}-linux-x64"
 mongodb_mongosh_link: /opt/mongosh
+
+# Ansible runs "/bin/sh -c" and never reads /etc/profile.d, so it cannot find
+# mongosh by name. It needs the full path.
+mongodb_mongosh_bin: /opt/mongosh/bin/mongosh
+
+# Ansible creates this database user on the first run.
+mongodb_admin_user: "admin"
+
+# The replica set is created once, from one member. Any member works, so we take
+# the first host in the group.
+mongodb_bootstrap_host: "{{ groups['mongo_cluster'] | first }}"

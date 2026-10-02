@@ -31,3 +31,6 @@
 
 - name: Open the firewall and start MongoDB
   ansible.builtin.import_tasks: service.yml
+
+- name: Create the replica set
+  ansible.builtin.import_tasks: replicaset.yml

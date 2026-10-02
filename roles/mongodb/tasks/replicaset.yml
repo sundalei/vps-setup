@@ -1,0 +1,115 @@
+---
+# These tasks run once, from one member. The others are already running and
+# waiting to be added.
+#
+# The first run has no user yet. MongoDB then accepts commands from localhost
+# without a login, and only until the first user exists. That is the window in
+# which we create the replica set and the admin user. After that, every command
+# needs a login.
+
+# If this succeeds, the replica set is already there and the block below is
+# skipped. failed_when: false, because a failure here is an answer, not a fault.
+- name: Check whether the replica set already answers
+  ansible.builtin.command:
+    argv:
+      - "{{ mongodb_mongosh_bin }}"
+      - --quiet
+      - --port
+      - "{{ mongodb_port }}"
+      - -u
+      - "{{ mongodb_admin_user }}"
+      - -p
+      - "{{ vault_mongodb_admin_password }}"
+      - --authenticationDatabase
+      - admin
+      - --eval
+      - rs.status().ok
+  register: mongodb_rs_check
+  changed_when: false
+  failed_when: false
+  no_log: true
+  run_once: true
+  delegate_to: "{{ mongodb_bootstrap_host }}"
+
+- name: Create the replica set and the admin user
+  when: mongodb_rs_check.rc != 0
+  run_once: true
+  delegate_to: "{{ mongodb_bootstrap_host }}"
+  block:
+    # One member per host in the group, each at its tunnel address.
+    # Example with three hosts: 10.10.0.1:27017, 10.10.0.2:27017, 10.10.0.3:27017.
+    # "already initialzied" means an earlier run created it, so we ignore it.
+    - name: Start the replica set
+      ansible.builtin.command:
+        argv:
+          - "{{ mongodb_mongosh_bin }}"
+          - --quiet
+          - --port
+          - "{{ mongodb_port }}"
+          - --eval
+          - >-
+            try { rs.initiate({ _id: "{{ mongodb_replset }}", members: [
+            {% for host in groups['mongo_cluster'] %}
+            { _id: {{ loop.index0 }}, host: "{{ hostvars[host].wg_ip }}:{{ mongodb_port }}" }{{ "," if not loop.last else "" }}
+            {% endfor %}
+            ] }) } catch (e) { if (!/already initialized/i.test(e.message)) { throw e } }
+      changed_when: true
+
+    # Only the primary accepts writes, and creating a user is a write. Right
+    # after rs.initiate() the election takes a moment, so we wait for it.
+    - name: Wait until this node is the primary
+      ansible.builtin.command:
+        argv:
+          - "{{ mongodb_mongosh_bin }}"
+          - --quiet
+          - --port
+          - "{{ mongodb_port }}"
+          - --eval
+          - db.hello().isWritablePrimary
+      register: mongodb_primary
+      until: "'true' in mongodb_primary.stdout"
+      retries: 30
+      delay: 2
+      changed_when: false
+
+    # The "root" role is the full admin role inside MongoDB.
+    - name: Create the admin user
+      ansible.builtin.command:
+        argv:
+          - "{{ mongodb_mongosh_bin }}"
+          - --quiet
+          - --port
+          - "{{ mongodb_port }}"
+          - --eval
+          - >-
+            db.getSiblingDB("admin").createUser({ user: "{{ mongodb_admin_user }}",
+            pwd: "{{ vault_mongodb_admin_password }}",
+            roles: [{ role: "root", db: "admin" }] })
+      changed_when: true
+      no_log: true
+
+# Do not finish until every member has really joined. health 1 means the member
+# answers. With three hosts we wait for 3.
+- name: Wait until all members have joined
+  ansible.builtin.command:
+    argv:
+      - "{{ mongodb_mongosh_bin }}"
+      - --quiet
+      - --port
+      - "{{ mongodb_port }}"
+      - -u
+      - "{{ mongodb_admin_user }}"
+      - -p
+      - "{{ vault_mongodb_admin_password }}"
+      - --authenticationDatabase
+      - admin
+      - --eval
+      - rs.status().members.filter(m=>m.health==1).length
+  register: mongodb_members_up
+  until: mongodb_members_up.stdout | trim | int == (groups['mongo_cluster'] | length)
+  retries: 30
+  delay: 5
+  changed_when: false
+  no_log: true
+  run_once: true
+  delegate_to: "{{ mongodb_bootstrap_host }}"
