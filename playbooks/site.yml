@@ -1,6 +1,8 @@
 ---
 # Everything, in dependency order. Individual projects can be run on their own:
-#   ansible-playbook playbooks/docker.yml
+#   ansible-playbook playbooks/elasticsearch.yml
+# Each project playbook imports the pre steps it needs (bootstrap, base, network).
+# Here they run once up front, and skip_prereqs stops each project from repeating them.
 - name: Bootstrap
   ansible.builtin.import_playbook: bootstrap.yml
 
@@ -12,6 +14,15 @@
 
 - name: Elasticsearch stack
   ansible.builtin.import_playbook: elasticsearch.yml
+  vars:
+    skip_prereqs: true
 
 - name: Java Dev environment
   ansible.builtin.import_playbook: java.yml
+  vars:
+    skip_prereqs: true
+
+- name: MongoDB replica set
+  ansible.builtin.import_playbook: mongodb.yml
+  vars:
+    skip_prereqs: true

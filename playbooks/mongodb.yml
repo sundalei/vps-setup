@@ -4,14 +4,18 @@
 #   base.yml       -> base packages and the firewall
 #   network.yml    -> WireGuard, because members talk over the tunnel
 # With these imports, this playbook is safe to run on a fresh server.
+# site.yml runs them once itself and sets skip_prereqs so they are not repeated.
 - name: Bootstrap
   ansible.builtin.import_playbook: bootstrap.yml
+  when: not (skip_prereqs | default(false) | bool)
 
 - name: Baseline
   ansible.builtin.import_playbook: base.yml
+  when: not (skip_prereqs | default(false) | bool)
 
 - name: Network
   ansible.builtin.import_playbook: network.yml
+  when: not (skip_prereqs | default(false) | bool)
 
 # MongoDB replica set.
 # Run this against the whole mongo_cluster group at once: the member list and the firewall rules are built from the group.

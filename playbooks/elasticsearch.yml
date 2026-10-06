@@ -1,4 +1,22 @@
 ---
+# Elasticsearch needs three things first:
+#   bootstrap.yml  -> creates the dalei user that we log in with
+#   base.yml       -> base packages, the firewall and vm.max_map_count
+#   network.yml    -> WireGuard, because nodes talk over the tunnel (transport 9300)
+# With these imports, this playbook is safe to run on a fresh server.
+# site.yml runs them once itself and sets skip_prereqs so they are not repeated.
+- name: Bootstrap
+  ansible.builtin.import_playbook: bootstrap.yml
+  when: not (skip_prereqs | default(false) | bool)
+
+- name: Baseline
+  ansible.builtin.import_playbook: base.yml
+  when: not (skip_prereqs | default(false) | bool)
+
+- name: Network
+  ansible.builtin.import_playbook: network.yml
+  when: not (skip_prereqs | default(false) | bool)
+
 # Elasticsearch Stack
 # ------------------------------------------------------------------------------
 # Divided into three distinct plays targeting separate inventory groups:
