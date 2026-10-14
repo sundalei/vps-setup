@@ -113,7 +113,9 @@ Hosts are grouped by functional role in `inventory/hosts.yml`:
 │   ├── bootstrap.yml            # Initial root connection & admin user setup
 │   ├── base.yml                 # System baseline (sysctl, packages, firewall defaults)
 │   ├── network.yml              # WireGuard mesh installation and connectivity check
-│   └── elasticsearch.yml        # Application deployment: ES Cluster -> Kibana -> Web Proxy
+│   ├── elasticsearch.yml        # Application deployment: ES Cluster -> Kibana -> Web Proxy
+│   ├── *-stop.yml / *-start.yml # Safe stop and start per middleware (elasticsearch, mongodb)
+│   └── stop-all.yml / start-all.yml # Stop or start every middleware to free memory
 └── roles/
     ├── bootstrap/               # Creates non-root admin, deploys SSH key, sets sudoers
     ├── common/                  # Configures vm.max_map_count (262144), base packages, UFW/firewalld
@@ -371,6 +373,17 @@ curl -s -u elastic:<elastic_password> http://127.0.0.1:9200/_cluster/health?pret
 
 # Cluster nodes
 curl -s -u elastic:<elastic_password> http://127.0.0.1:9200/_cat/nodes?v
+```
+
+### Stopping and Starting Middleware
+
+To free memory for experiments, each middleware has a safe stop playbook and a
+matching start playbook. They only stop and start services: nothing is
+uninstalled and no data is tounched. WireGuard, Apache and SSH keep running.
+
+```bash
+# Everything (Kibana, Elasticsearch, MongoDB)
+ansible-playbook playbooks/stop-all.yml
 ```
 
 ### Code Quality & Linting
