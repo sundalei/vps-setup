@@ -1,0 +1,7 @@
+---
+- name: Stop all
+  hosts: all
+  tasks:
+    - name: Stop all
+      ansible.builtin.debug:
+        msg: stop all

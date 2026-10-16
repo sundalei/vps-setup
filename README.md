@@ -122,6 +122,7 @@ Hosts are grouped by functional role in `inventory/hosts.yml`:
     ├── wireguard/               # Generates keypairs, exchanges public keys via facts, brings up wg0
     ├── elasticsearch/           # Pinned install, CA/node cert generation, keystore seeding, quorum health gate
     ├── kibana/                  # Pinned install, static encryption keys, loopback service check
+    ├── mongodb/                 # Tarball install, replica set over WireGuard, Database Tools (mongodump, mongorestore)
     └── apache/                  # Reverse proxy, Let's Encrypt TLS, and teardown (remove.yml)
 ```
 
@@ -384,7 +385,35 @@ uninstalled and no data is tounched. WireGuard, Apache and SSH keep running.
 ```bash
 # Everything (Kibana, Elasticsearch, MongoDB)
 ansible-playbook playbooks/stop-all.yml
+ansible-playbook playbooks/start-all.yml
+
+# One stack
+ansible-playbook playbooks/elasticsearch-stop.yml   # Kibana, then the ES cluster
+ansible-playbook playbooks/elasticsearch-start.yml  # ES cluster, then Kibana
+ansible-playbook playbooks/mongodb-stop.yml
+ansible-playbook playbooks/mongodb-start.yml
+
+# One node only; the cluster or replica set stays up on the other two
+ansible-playbook playbooks/elasticsearch-stop.yml --limit es3
+
+# Also keep the service off after a reboot (the start playbooks re-enable them)
+ansible-playbook playbooks/stop-all.yml -e disable_on_boot=true
 ```
+
+What "safe" means:
+
+- **Elasticsearch**: shard allocation is set to `primaries` and all indices are
+  flushed before the node stop, so the cluster does not start copying shards
+  around while nodes are away. The start playbook waits for a master, sets
+  allocation back to the default and waits for green.
+- **MongoDB**: secondaries stop first and the primary last. When only some
+  members stop, a primary among them steps down first, so a caught-up secondary
+  takes over. The start playbook waits for a primary and all members healthy.
+- **Kibana** stops before Elasticsearch and starts after it.
+- Stopping two of the three nodes is refused: the last node would have no
+  quorum, hold its memory and serve nothing. Stop one node, or all of them.
+
+The stop playbooks print the memory available on each host when they finish.
 
 ### Code Quality & Linting
 

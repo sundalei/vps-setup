@@ -1,0 +1,7 @@
+---
+- name: Start all
+  hosts: all
+  tasks:
+    - name: Start all
+      ansible.builtin.debug:
+        msg: start all

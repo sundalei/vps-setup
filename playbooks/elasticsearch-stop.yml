@@ -1,0 +1,11 @@
+---
+# Stop the Elastic stack safely, to free memory. Start it again with
+# elasticsearch-start.yml. Nothing is uninstalled and no data is touched.
+#
+#     ansible-playbook playbooks/elasticsearch-stop.yml          # whole cluster + Kibana
+- name: Stop all
+  hosts: all
+  tasks:
+    - name: Stop all
+      ansible.builtin.debug:
+        msg: stop all

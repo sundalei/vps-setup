@@ -6,6 +6,7 @@
 #
 # Order matters:
 #   install    -> user, folders, tarballs, systemd unit. Not started yet.
+#   tools      -> mongodump, mongorestore and the other tools. Optional.
 #   config     -> keyfile and mongod.conf, so the first start is already correct.
 #   service    -> firewall, then start mongod on every node.
 #   replicaset -> run once: create the replica set, then the admin user.
@@ -25,6 +26,12 @@
 
 - name: Install MongoDB
   ansible.builtin.import_tasks: install.yml
+
+- name: Refuse to install the tools without a tools build for this OS
+  ansible.builtin.assert:
+    that: mongodb_tools_target | length > 0
+    fail_msg: >-
+      No MongoDB Database Tools build is mapped for the {{ mongodb_target }} server build.
 
 - name: Write the configuration
   ansible.builtin.import_tasks: config.yml
