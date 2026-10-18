@@ -42,6 +42,19 @@ mongodb_link: /opt/mongodb
 mongodb_mongosh_install_dir: "/opt/mongosh-{{ mongodb_mongosh_version }}-linux-x64"
 mongodb_mongosh_link: /opt/mongosh
 
+# MongoDB Database Tools (mongodump, mongorestore, ...). On by default.
+mongodb_tools_install: true
+
+# The tools have their own build names, and fewer of them than the server.
+# There is no RHEL 10 build, so RHEL 10 hosts use the RHEL 9.3 one.
+# The name is the "name" field in https://downloads.mongodb.org/tools/db/release.json
+mongodb_tools_targets:
+  rhel10: rhel93
+  rhel93: rhel93
+  ubuntu2404: ubuntu2404
+  debian12: debian12
+mongodb_tools_target: "{{ mongodb_tools_targets[mongodb_target] | default('') }}"
+
 # Ansible runs "/bin/sh -c" and never reads /etc/profile.d, so it cannot find
 # mongosh by name. It needs the full path.
 mongodb_mongosh_bin: /opt/mongosh/bin/mongosh

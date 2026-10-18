@@ -32,6 +32,10 @@
     that: mongodb_tools_target | length > 0
     fail_msg: >-
       No MongoDB Database Tools build is mapped for the {{ mongodb_target }} server build.
+      Add it to mongodb_tools_targets, or set mongodb_tools_install: false
+    quiet: true
+  when: mongodb_tools_install | bool
+  tags: [mongodb_tools]
 
 - name: Write the configuration
   ansible.builtin.import_tasks: config.yml
