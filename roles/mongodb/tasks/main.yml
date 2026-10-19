@@ -37,6 +37,11 @@
   when: mongodb_tools_install | bool
   tags: [mongodb_tools]
 
+- name: Install the MongoDB Database Tools
+  ansible.builtin.import_tasks: tools.yml
+  when: mongodb_tools_install | bool
+  tags: [mongodb_tools]
+
 - name: Write the configuration
   ansible.builtin.import_tasks: config.yml
 

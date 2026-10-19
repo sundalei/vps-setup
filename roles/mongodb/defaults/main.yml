@@ -49,11 +49,14 @@ mongodb_tools_install: true
 # There is no RHEL 10 build, so RHEL 10 hosts use the RHEL 9.3 one.
 # The name is the "name" field in https://downloads.mongodb.org/tools/db/release.json
 mongodb_tools_targets:
-  rhel10: rhel93
+  rhel10: rhel10
   rhel93: rhel93
   ubuntu2404: ubuntu2404
   debian12: debian12
 mongodb_tools_target: "{{ mongodb_tools_targets[mongodb_target] | default('') }}"
+
+# /opt/mongodb-tools always points at the version we want.
+mongodb_tools_install_dir: "/opt/mongodb-database-tools-{{ mongodb_tools_target }}-x86_64-{{ mongodb_tools_version }}"
 
 # Ansible runs "/bin/sh -c" and never reads /etc/profile.d, so it cannot find
 # mongosh by name. It needs the full path.
