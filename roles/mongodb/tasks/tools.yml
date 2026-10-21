@@ -25,6 +25,13 @@
         return_content: true
       register: mongodb_tools_feed
 
-    - name: Debug
-      ansible.builtin.debug:
-        var: mongodb_tools_feed
+    # Example: version 100.19.1, target rhel10, arch x86_64.
+    - name: Pick the download for this version and platform
+      ansible.builtin.set_fact:
+        mongodb_tools_download: >-
+          {{ (mongodb_tools_feed.content | from_json).versions
+           | selectattr('version', 'equalto', mongodb_tools_version)
+           | map(attribute='downloads') | first | default([])
+           | selectattr('name', 'equalto', mongodb_tools_target)
+           | selectattr('arch', 'equalto', 'x86_64')
+           | first | default({}) }}

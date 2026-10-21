@@ -46,7 +46,6 @@ mongodb_mongosh_link: /opt/mongosh
 mongodb_tools_install: true
 
 # The tools have their own build names, and fewer of them than the server.
-# There is no RHEL 10 build, so RHEL 10 hosts use the RHEL 9.3 one.
 # The name is the "name" field in https://downloads.mongodb.org/tools/db/release.json
 mongodb_tools_targets:
   rhel10: rhel10
