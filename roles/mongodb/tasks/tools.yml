@@ -1,0 +1,37 @@
+---
+# MongoDB Database Tools: mongodump, mongorestore, mongoexport, mongoimport,
+# mongostat, mongotop, bsondump, mongofiles.
+# They ship on their own, with their own version (100.x), separate from the
+# server. We install them the same way as the server: tarball in /opt and a
+# link that points at the version we want.
+
+# Run only this part: ansible-playbook playbooks/mongodb.yml --tags mongodb_tools
+# Skip it: set mongodb_tools_install: false
+
+- name: Check whether this tools version is already unpacked
+  ansible.builtin.stat:
+    path: "{{ mongodb_tools_install_dir }}"
+  register: mongodb_tools_dir
+
+# MongoDB lists every tools release, with the sha256 of each tarball, in one
+# feed. We read the checksum from there instead of copying it into this repo.
+# This only runs when the version is not unpacked yet.
+- name: Find the tools tarball and its checksum
+  when: not mongodb_tools_dir.stat.exists
+  block:
+    - name: Read the MongoDB Database Tools release feed
+      ansible.builtin.uri:
+        url: https://downloads.mongodb.org/tools/db/release.json
+        return_content: true
+      register: mongodb_tools_feed
+
+    # Example: version 100.19.1, target rhel10, arch x86_64.
+    - name: Pick the download for this version and platform
+      ansible.builtin.set_fact:
+        mongodb_tools_download: >-
+          {{ (mongodb_tools_feed.content | from_json).versions
+           | selectattr('version', 'equalto', mongodb_tools_version)
+           | map(attribute='downloads') | first | default([])
+           | selectattr('name', 'equalto', mongodb_tools_target)
+           | selectattr('arch', 'equalto', 'x86_64')
+           | first | default({}) }}
