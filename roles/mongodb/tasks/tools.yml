@@ -35,3 +35,38 @@
            | selectattr('name', 'equalto', mongodb_tools_target)
            | selectattr('arch', 'equalto', 'x86_64')
            | first | default({}) }}
+
+    - name: Refuse to go on without a tarball for this platform
+      ansible.builtin.assert:
+        that: mongodb_tools_download.archive is defined
+        fail_msg: >-
+          The release feed has no {{ mongodb_tools_target }} x86_64 tarball for
+          tools version {{ mongodb_tools_version }}. Check mongodb_tools_version
+          and mongodb_tools_target.
+        quiet: true
+
+    - name: Download the tools tarball
+      ansible.builtin.get_url:
+        url: "{{ mongodb_tools_download.archive.url }}"
+        dest: "/usr/local/src/{{ mongodb_tools_download.archive.url | basename }}"
+        owner: root
+        group: root
+        mode: "0644"
+        checksum: "sha256:{{ mongodb_tools_download.archive.sha256 }}"
+
+    # Same as the server: no mode, so every file keeps the permission stored in the tarball
+    - name: Unpack the tools
+      ansible.builtin.unarchive:
+        src: "/usr/local/src/{{ mongodb_tools_download.archive.url | basename }}"
+        dest: /opt
+        remote_src: true
+        owner: root
+        group: root
+        creates: "{{ mongodb_tools_install_dir }}"
+
+# Moving this link is the whole upgrade, and moving it back is the rollback.
+- name: Point /opt/mongodb-tools at this version
+  ansible.builtin.file:
+    src: "{{ mongodb_tools_install_dir }}"
+    dest: "{{ mongodb_tools_link }}"
+    state: link

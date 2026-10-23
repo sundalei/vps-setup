@@ -56,6 +56,7 @@ mongodb_tools_target: "{{ mongodb_tools_targets[mongodb_target] | default('') }}
 
 # /opt/mongodb-tools always points at the version we want.
 mongodb_tools_install_dir: "/opt/mongodb-database-tools-{{ mongodb_tools_target }}-x86_64-{{ mongodb_tools_version }}"
+mongodb_tools_link: /opt/mongodb-tools
 
 # Ansible runs "/bin/sh -c" and never reads /etc/profile.d, so it cannot find
 # mongosh by name. It needs the full path.

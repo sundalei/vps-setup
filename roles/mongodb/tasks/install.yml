@@ -110,13 +110,16 @@
 # path, /opt/mongosh/bin/mongosh.
 # A person who logs in does need it. A login shell reads /etc/profile.d, so
 # after this file exists, typing "mongosh" is enough.
+# /opt/mongodb-tools/bin is in the list even when the tools are off. A folder
+# that does not exist on the PATH does no harm.
 - name: Put MongoDB on the PATH for logins
   ansible.builtin.copy:
     dest: /etc/profile.d/mongodb.sh
-    content: "export PATH={{ mongodb_link }}/bin:{{ mongodb_mongosh_link }}/bin:$PATH\n"
+    content: "export PATH={{ mongodb_link }}/bin:{{ mongodb_mongosh_link }}/bin:{{ mongodb_tools_link }}/bin:$PATH\n"
     owner: root
     group: root
     mode: "0644"
+  tags: [mongodb_tools]
 
 # systemd only knows about mongod once this file exists.
 - name: Install the systemd unit
