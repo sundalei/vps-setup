@@ -170,7 +170,8 @@ ansible-playbook playbooks/site.yml
    validates escalation via `id -u`.
 2. **`base.yml`**: Configures kernel parameters (`vm.max_map_count = 262144`),
    refreshes package caches, installs base utilities (`iputils-ping`, `curl`,
-   `unzip`), and enables host firewalls with OpenSSH allowed.
+   `unzip`), enables host firewalls with OpenSSH allowed, and opens the extra
+   public TCP ports in `public_tcp_ports` (8081 for Spring Boot).
 3. **`network.yml`**: Deploys WireGuard on all nodes in parallel, generates
    keypairs, exchanges public keys across hosts, brings up `wg0`, and verifies
    mesh ping reachability.

@@ -47,3 +47,22 @@
     state: enabled
     policy: deny
   when: ansible_facts['os_family'] == 'Debian'
+
+# Extra public TCP hosts (public_tcp_ports in group_vars), e.g. 8081 for Spring Boot.
+# A container port published with -p does not need this: Docker bypasses the host firewall.
+- name: Open extra public TCP ports (firewalld / RedHat)
+  ansible.posix.firewalld:
+    port: "{{ item }}/tcp"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ public_tcp_ports | default([]) }}"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Open extra public TCP ports (ufw / Debian)
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: "{{ public_tcp_ports | default([]) }}"
+  when: ansible_facts['os_family'] == 'Debian'
