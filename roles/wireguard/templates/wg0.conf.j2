@@ -12,3 +12,10 @@ AllowedIPs = {{ hostvars[peer].wg_ip }}/32
 EndPoint = {{ hostvars[peer].wg_public_endpoint }}:{{ wg_port }}
 PersistentKeepalive = 25
 {% endfor %}
+
+{% for peer in wg_extra_peers | default([]) %}
+[Peer]
+# {{ peer.name }}
+PublicKey = {{ peer.public_key }}
+AllowedIPs = {{ peer.allowed_ips }}
+{% endfor %}

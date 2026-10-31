@@ -1,0 +1,98 @@
+---
+# Generates a WireGuard config for a client (laptop, phone) on the CONTROL machine.
+# The client is NOT managed by Ansible -- this only produces a file to import.
+#
+#   ansible-playbook playbooks/wireguard-client.yml -e wg_client=macbook
+#
+# Re-run it after rebuilding any node: a reinstalled host gets a NEW WireGuard
+# keypair, and a stale PublicKey in the client config fails silently -- no error,
+# just no handshake with that one peer.
+#
+# The private key is read from ~/.wireguard/<name>.key and never enters the repo.
+# The rendered file contains that key, so it is written to ~/.wireguard with mode
+# 0600, never into the working tree.
+
+- name: Collect each node's WireGuard public key
+  hosts: wireguard_mesh
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Read this node's public key
+      ansible.builtin.slurp:
+        src: /etc/wireguard/publickey
+      register: wg_pub_slurp
+
+    # A fact, so the next play can reach it through hostvars.
+    - name: Expose it to the next play
+      ansible.builtin.set_fact:
+        wg_public_key_value: "{{ wg_pub_slurp.content | b64decode | trim }}"
+
+- name: Render the client config
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    wg_client_dir: "{{ lookup('env', 'HOME') }}/.wireguard"
+    wg_client_key_file: "{{ wg_client_dir }}/{{ wg_client | default('') }}.key"
+    wg_client_out: "{{ wg_client_dir }}/{{ wg_client | default('') }}.conf"
+    wg_client_peer: "{{ wg_extra_peers | default([]) | selectattr('name', 'equalto', wg_client | default('')) | list }}"
+    wg_client_ip: "{{ (wg_client_peer | first).allowed_ips | regex_replace('/32$', '') }}"
+  tasks:
+    - name: Require a client name that exists in wg_extra_peers
+      ansible.builtin.assert:
+        that: wg_client_peer | length == 1
+        fail_msg: >-
+          Pass -e wg_client=<name> matching one entry in wg_extra_peers
+          (known: {{ wg_extra_peers | default([]) | map(attribute='name') | list }}).
+        quiet: true
+
+    - name: Look for the private key outside the repo
+      ansible.builtin.stat:
+        path: "{{ wg_client_key_file }}"
+      register: wg_key_stat
+
+    - name: Fail if the private key is missing
+      ansible.builtin.assert:
+        that: wg_key_stat.stat.exists
+        fail_msg: >-
+          No private key at {{ wg_client_key_file }}.
+          Create one with: (umask 077; wg genkey > {{ wg_client_key_file }})
+        quiet: true
+
+    # Catches the silent-failure case: a key regenerated on the client, or a
+    # public_key in group_vars never updated after a rebuild.
+    - name: Derive the public key from the private key
+      ansible.builtin.shell: "wg pubkey < {{ wg_client_key_file | quote }}"
+      register: wg_derived
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Fail if group_vars disagrees with the private key
+      ansible.builtin.assert:
+        that: wg_derived.stdout | trim == (wg_client_peer | first).public_key
+        fail_msg: >-
+          The public_key for '{{ wg_client }}' in inventory/group_vars/all/main.yml
+          does not match {{ wg_client_key_file }}. Update it, then run
+          playbooks/network.yml before generating the config.
+        quiet: true
+      when: wg_derived.rc == 0          # skipped when `wg` is not installed locally
+
+    - name: Ensure the key directory is private
+      ansible.builtin.file:
+        path: "{{ wg_client_dir }}"
+        state: directory
+        mode: "0700"
+
+    - name: Render the client config
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../roles/wireguard/templates/client.conf.j2"
+        dest: "{{ wg_client_out }}"
+        mode: "0600"
+
+    - name: Say where it landed
+      ansible.builtin.debug:
+        msg: >-
+          Wrote {{ wg_client_out }} -- import with WireGuard.app
+          (File > Import Tunnel(s) from File). Run playbooks/network.yml first
+          if the servers have not seen this peer yet.
