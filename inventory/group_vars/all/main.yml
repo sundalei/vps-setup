@@ -22,7 +22,7 @@ wg_extra_peers:
     allowed_ips: 10.10.0.10/32
     mongodb: true
   - name: macbook-air
-    public_key: "cIG75O6fpVcaL5K/Fq+7md/WupFM6naYTiUL0kUxSzE="
+    public_key: "kQ2ziRgZ2sTkvCwuxXYroGvpAn4k2kxbN8NFfZIrjQI="
     allowed_ips: 10.10.0.11/32
     mongodb: true
 
