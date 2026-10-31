@@ -22,8 +22,8 @@
     state: present
   vars:
     base_packages: >-
-      {{ ['curl', 'unzip', 'firewalld'] if ansible_facts['os_family'] == 'RedHat'
-         else ['curl', 'unzip', 'ufw', 'iputils-ping'] }}
+      {{ ['curl', 'unzip', 'git', 'firewalld'] if ansible_facts['os_family'] == 'RedHat'
+         else ['curl', 'unzip', 'git', 'ufw', 'iputils-ping'] }}
 
 # --- Firewall baseline ---
 # RedHat: firewalld is the default and SSH is already allowed; just ensure it runs.
@@ -66,3 +66,45 @@
     proto: tcp
   loop: "{{ public_tcp_ports | default([]) }}"
   when: ansible_facts['os_family'] == 'Debian'
+
+# --- Shell for the admin user
+# These live in common, not bootstrap: bootstrap is imported by site.yml, so
+# it does re-run -- but its task sit behind a root-SSH probe that skips SLIENTLY
+# when root login is closed. Shell config would then stop converging with no
+# error reported, and any host provisioned without root SSH (admin user already
+# baked into the image) would never get it at all. common has no such gate.
+# and new hosts would drift from the old ones.
+- name: Install oh-my-zsh for the admin user
+  ansible.builtin.git:
+    repo: https://github.com/ohmyzsh/ohmyzsh.git
+    dest: "~{{ admin_user }}/.oh-my-zsh"
+    version: master
+    depth: 1
+    update: false
+  become: true
+  become_user: "{{ admin_user }}"
+
+# Cloning the repo does NOT create ~/.zshrc -- only oh-my-zsh's install.sh does,
+# by copying this template.
+# force: false means an existing .zshrc is never clobbered.
+- name: Seed .zshrc from the oh-my-zsh template (first run only)
+  ansible.builtin.copy:
+    src: "~{{ admin_user }}/.oh-my-zsh/templates/zshrc.zsh-template"
+    dest: "~{{ admin_user }}/.zshrc"
+    remote_src: true
+    force: false
+    mode: "0644"
+  become: true
+  become_user: "{{ admin_user }}"
+
+- name: Load oh-my-zsh and set the prompt
+  ansible.builtin.blockinfile:
+    path: "~{{ admin_user }}/.zshrc"
+    marker: "# {mark} ANSIBLE MANAGED: oh-my-zsh"
+    block: |
+      export ZSH="$HOME/.oh-my-zsh"
+      ZSH_THEME="robbyrussell"
+      [[ -n ${ZSH_CACHE_DIR-} ]] || source "$ZSH/oh-my-zsh.sh"
+      PROMPT="%n@%m $PROMPT"
+  become: true
+  become_user: "{{ admin_user }}"
