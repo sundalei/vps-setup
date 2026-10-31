@@ -15,7 +15,6 @@ mongodb_port: 27017
 mongodb_replset: "rs0"
 
 # Tunnel IPs allowed to reach MongoDB that are not replica set members.
-# The peer itself is defined in group_vars/all/main.yml (wg_extra_peers).
-# mongo_cluster/main.yml
-mongodb_extra_client_ips:
-  - "{{ wg_client_macbook_ip }}"
+mongodb_extra_client_ips: >-
+  {{ wg_extra_peers | selectattr('mongodb', 'defined') | selectattr('mongodb')
+     | map(attribute='allowed_ips') | map('regex_replace', '/32$', '') | list }}

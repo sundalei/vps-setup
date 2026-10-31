@@ -16,12 +16,15 @@ wg_subnet_cidr: "10.10.0.0/24"
 wg_port: 51820
 wg_interface: "wg0"
 
-wg_client_macbook_ip: "10.10.0.10"
-
 wg_extra_peers:
-  - name: macbook
+  - name: macbook-pro
+    public_key: "vku9DXP8SIzztogoK7kG5o3bWPnmWYBEcVLoRsZ99GQ="
+    allowed_ips: 10.10.0.10/32
+    mongodb: true
+  - name: macbook-air
     public_key: "cIG75O6fpVcaL5K/Fq+7md/WupFM6naYTiUL0kUxSzE="
-    allowed_ips: "{{ wg_client_macbook_ip }}/32"
+    allowed_ips: 10.10.0.11/32
+    mongodb: true
 
 # Ports
 es_http_port: 9200
