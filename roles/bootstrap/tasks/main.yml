@@ -20,14 +20,15 @@
 
 # zsh has to exist before the account points at it: sshd runs every command
 # through the login shell, Ansible's included.
-- name: "Install zsh and git"
+- name: Install zsh and git
   ansible.builtin.package:
     name: [zsh, git]
     state: present
 
 - name: Set admin group per OS family
   ansible.builtin.set_fact:
-    bootstrap_admin_group: "{{ 'wheel' if ansible_facts['os_family'] == 'RedHat' else 'sudo' }}"
+    bootstrap_admin_group: >-
+      {{ 'wheel' if ansible_facts['os_family'] == 'RedHat' else 'sudo' }}
 
 - name: Ensure the admin group exists
   ansible.builtin.group:
@@ -60,25 +61,6 @@
     mode: "0440"
     validate: "visudo -cf %s"
 
-- name: Install oh-my-zsh for the admin user
-  ansible.builtin.git:
-    repo: https://github.com/ohmyzsh/ohmyzsh.git
-    dest: "~{{ admin_user }}/.oh-my-zsh"
-    version: master
-    depth: 1
-    update: false
-  become: true
-  become_user: "{{ admin_user }}"
-
-- name: Load oh-my-zsh and set the prompt
-  ansible.builtin.blockinfile:
-    path: "~{{ admin_user }}/.zshrc"
-    marker: "# {mark} ANSIBLE MANAGED: oh-my-zsh"
-    insertbefore: "^#THIS MUST BE AT THE END"
-    block: |
-      export ZSH="$HOME/.oh-my-zsh"
-      ZSH_THEME="robbyrussell"
-      source "$ZSH/oh-my-zsh.sh"
-      PROMPT="%n@%m $PROMPT"
-  become: true
-  become_user: "{{ admin_user }}"
+- name: Set the system hostname to the inventory name
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}"
