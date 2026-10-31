@@ -4,23 +4,22 @@
 # does not have one yet, so they use the RHEL 10 and Ubuntu 24.04 builds.
 # To support a new OS: add a line here and its checksum below.
 mongodb_tarball_targets:
-  Fedora-44: rhel10
   Rocky-10: rhel10
   AlmaLinux-10: rhel10
   RedHat-10: rhel10
   CentOS-10: rhel10
   Rocky-9: rhel93
-  Ubuntu-26: ubuntu2404
+  Ubuntu-26: ubuntu2604
   Ubuntu-24: ubuntu2404
   Debian-12: debian12
 
 # sha256 of each server tarball, from https://downloads.mongodb.org/current.json
 mongodb_tarball_sha256:
-  rhel10: dd14cbda4cbdee634d459f88c1cb8e4120f7591495b9334d29e30d35730ba718
-  ubuntu2404: b411be17c31ef249767ed91974d876e007c91afd5f45e1534057d247eada9f0d
+  rhel10: 71948e4b405e129ffad7657e525b20d59b33b7a860e8eb851ac4916206f58f59
+  ubuntu2604: b11e8183acad92f776b8bb5a22e1c6cb27b47246fce0f9e22342ed42bcdf2229
 
 # mongosh has one build that runs on every Linux machine.
-mongodb_mongosh_sha256: aa42cb826b7b8e655c5481293f5365ddaf1a23e43af07520326e5bbc957838ad
+mongodb_mongosh_sha256: 8d24940ebe3675959b518fd41ea16b4e2182d6a75c09777db09cfa64e18834a1
 
 # Which tarball this host needs. Empty means the OS is not in the list above.
 mongodb_os_key: "{{ ansible_facts['distribution'] }}-{{ ansible_facts['distribution_major_version'] }}"
@@ -52,6 +51,7 @@ mongodb_tools_targets:
   rhel93: rhel93
   ubuntu2404: ubuntu2404
   debian12: debian12
+  ubuntu2604: ubuntu2604
 mongodb_tools_target: "{{ mongodb_tools_targets[mongodb_target] | default('') }}"
 
 # /opt/mongodb-tools always points at the version we want.
@@ -68,3 +68,6 @@ mongodb_admin_user: "admin"
 # The replica set is created once, from one member. Any member works, so we take
 # the first host in the group.
 mongodb_bootstrap_host: "{{ groups['mongo_cluster'] | first }}"
+
+# Tunnel IPs that may reach MongoDB but are not cluster members (laptops, etc.)
+mongodb_extra_client_ips: []

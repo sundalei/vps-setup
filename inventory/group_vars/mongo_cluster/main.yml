@@ -1,0 +1,21 @@
+# inventory/group_vars/mongo_cluster/main.yml
+---
+# MongoDB settings for the mongo_cluster group.
+# Secrets (vault_mongodb_keyfile, vault_mongodb_admin_password) still live in
+# group_vars/all/vault.yml. A vault.yml can be added beside this file later
+# with no other change.
+
+# One version for every node.
+mongodb_version: "9.0.4"
+mongodb_mongosh_version: "2.14.1"
+# mongodump, mongorestore and friends. Versioned apart from the server.
+mongodb_tools_version: "100.20.0"
+
+mongodb_port: 27017
+mongodb_replset: "rs0"
+
+# Tunnel IPs allowed to reach MongoDB that are not replica set members.
+# The peer itself is defined in group_vars/all/main.yml (wg_extra_peers).
+# mongo_cluster/main.yml
+mongodb_extra_client_ips:
+  - "{{ wg_client_macbook_ip }}"

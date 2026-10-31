@@ -25,6 +25,24 @@
     label: "{{ peer }} ({{ hostvars[peer].wg_ip }})"
   when: ansible_facts['os_family'] == 'Debian'
 
+- name: Firewall - allow the MongoDB port from extra tunnel clients (RedHat)
+  ansible.posix.firewalld:
+    rich_rule: "rule family=ipv4 source address={{ item }}/32 port port={{ mongodb_port }} protocol=tcp accept"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ mongodb_extra_client_ips }}"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Firewall - allow the MongoDB port from extra tunnel clients (Debian)
+  community.general.ufw:
+    rule: allow
+    src: "{{ item }}"
+    port: "{{ mongodb_port }}"
+    proto: tcp
+  loop: "{{ mongodb_extra_client_ips }}"
+  when: ansible_facts['os_family'] == 'Debian'
+
 # daemon_reload tells systemd to read the unit file we just wrote.
 - name: Enable and start MongoDB
   ansible.builtin.systemd:
