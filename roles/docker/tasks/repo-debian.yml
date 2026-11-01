@@ -1,0 +1,59 @@
+---
+# Docker has separate repositories for Ubuntu and Debian.
+# Each one is named after the release codename (for example "noble" or "bookworm").
+
+# Remove the distro's own Docker packages, because they clash with docker-ce.
+- name: Remove packages that clash with docker-ce
+  ansible.builtin.apt:
+    name: [docker.io, docker-doc, docker-compose, podman-docker, containerd, runc]
+    state: absent
+
+- name: Create the apt keyring folder
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Download Docker's signing key
+  ansible.builtin.get_url:
+    url: "https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}/gpg"
+    dest: "/etc/apt/keyrings/docker.asc"
+    owner: root
+    group: root
+    mode: "0644"
+
+# Stop here if the downloaded key is not Docker's real key.
+- name: Check the key fingerprint
+  ansible.builtin.shell:
+    executable: /bin/bash
+    cmd: set -o pipefail && gpg --show-keys --with-colons /etc/apt/keyrings/docker.asc | grep -q 'fpr:::::::::{{ docker_gpg_fingerprint_debian }}:'
+  changed_when: false
+
+# deb822_repository needs this Python library on the server.
+- name: Install python3-debian
+  ansible.builtin.apt:
+    name: python3-debian
+    state: present
+
+# Writes /etc/apt/sources.list.d/docker.sources.
+# signed_by means apt only trusts this key for this repository.
+- name: Add the docker-ce repository
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: [deb]
+    uris: "https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}"
+    suites: ["{{ ansible_facts['distribution_release'] }}"]
+    components: [stable]
+    architectures: ["{{ 'amd64' if ansible_facts['architecture'] == 'x86_64' else 'arm64' }}"]
+    signed_by: /etc/apt/keyrings/docker.asc
+    state: present
+  register: docker_apt_repo
+
+# Read the new repository now, so the install step can find docker-ce.
+# This is not a handler, because a handler would run too late (after the install).
+- name: Refresh the apt package list
+  ansible.builtin.apt:
+    update_cache: true
+  when: docker_apt_repo is changed # noqa: no-handler

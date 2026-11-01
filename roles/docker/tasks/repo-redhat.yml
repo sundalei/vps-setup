@@ -1,0 +1,40 @@
+---
+# Docker has one repo folder per RHEL major version (for example 9 or 10).
+# Rocky, AlmaLinux and CentOS Stream use the same repo as RHEL.
+# We write the major version into the URL directly, because $releasever can be
+# a full version like "10.2", and Docker has no folder for that.
+
+# The podman-docker package adds a fake "docker" command that actually runs podman.
+# It clashes with the real docker command from docker-ce-cli, so remove it.
+# podman itself does not clash, so it can stay.
+# The other names are old Docker packages from the distro, which also clash.
+- name: Remove packages that clash with docker-ce
+  ansible.builtin.package:
+    name:
+      - docker
+      - docker-client
+      - docker-client-latest
+      - docker-common
+      - docker-latest
+      - docker-latest-logrotate
+      - docker-logrotate
+      - docker-engine
+      - podman
+      - runc
+    state: absent
+
+# rpm_key refuses the key if its fingerprint does not match.
+- name: Trust Docker's signing key
+  ansible.builtin.rpm_key:
+    key: https://download.docker.com/linux/rhel/gpg
+    fingerprint: "{{ docker_gpg_fingerprint_redhat }}"
+    state: present
+
+- name: Add the docker-ce repository
+  ansible.builtin.yum_repository:
+    name: docker-ce-stable
+    description: Docker CE Stable - $basearch
+    baseurl: "https://download.docker.com/linux/rhel/{{ ansible_facts['distribution_major_version'] }}/$basearch/stable"
+    gpgcheck: true
+    gpgkey: https://download.docker.com/linux/rhel/gpg
+    enabled: true

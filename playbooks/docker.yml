@@ -1,0 +1,24 @@
+---
+# Run these two playbooks before Docker:
+#   bootstrap.yml -> creates the admin user (dalei). This user is added to the docker group later.
+#   base.yml      -> installs base packages and starts firewalld.
+#                    firewalld must be running before Docker starts,
+#                    so Docker can add its own "docker" zone to it.
+# WireGuard is not needed, because Docker does not talk to the other servers.
+# Because of these two imports, you can run this playbook on a brand-new server.
+# site.yml already runs them once, and sets skip_prereqs so they don't run twice.
+- name: Bootstrap
+  ansible.builtin.import_playbook: bootstrap.yml
+  when: not (skip_prereqs | default(false) | bool)
+
+- name: Baseline
+  ansible.builtin.import_playbook: base.yml
+  when: not (skip_prereqs | default(false) | bool)
+
+# Install Docker Engine, the CLI, buildx and compose
+- name: Docker Engine
+  hosts: docker_hosts
+  become: true
+  roles:
+    - role: docker
+      tags: [docker]

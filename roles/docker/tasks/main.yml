@@ -1,0 +1,30 @@
+---
+# Install Docker Engine on every host in the docker_hosts group.
+#
+# The steps run in this order:
+#   1. repository -> add Docker's signing key and package repository for this OS.
+#   2. config     -> write daemon.json BEFORE installing. apt starts Docker right
+#                    after the install, and Docker should start with log limits.
+#   3. install    -> install the engine, CLI, containerd and plugins.
+#   4. service    -> start containerd and docker, and add docker_users to the docker group.
+#   5. check      -> make sure the daemon answers, and that Docker joined firewalld.
+#
+# Warning: firewalld and ufw do NOT block ports published with -p,
+# because Docker puts its own firewall rules before theirs.
+# Publish ports on 127.0.0.1 (for example -p 127.0.0.1:8080:80) or on the WireGuard IP,
+# and put Apache in front of anything that must be public.
+
+- name: Stop if this OS family has no Docker repository set up
+  ansible.builtin.assert:
+    that: ansible_facts['os_family'] in ['RedHat', 'Debian']
+    fail_msg: "No Docker repository is set up for the {{ ansible_facts['os_family'] }} family."
+    quiet: true
+
+# repository
+- name: Add the Docker repository (RedHat)
+  ansible.builtin.import_tasks: repo-redhat.yml
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Add the Docker repository (Debian)
+  ansible.builtin.import_tasks: repo-debian.yml
+  when: ansible_facts['os_family'] == 'Debian'

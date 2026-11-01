@@ -43,6 +43,3 @@ apache_certbot_email: "sundalei1988@gmail.com"
 
 # Where certs/keystores live
 es_cert_dir: "/etc/elasticsearch/certs"
-
-# Docker Engine. One version for every node. Empty means the newest release.
-docker_version: "29.9.2"

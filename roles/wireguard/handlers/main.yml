@@ -1,5 +1,12 @@
 ---
+# throttle: 1 restarts one node at a time. Adding or renaming any peer rewrites
+# wg0.conf on EVERY node, so without this all three drop their tunnels at once --
+# and Elasticsearch transport and MongoDB replication both ride wg0, so that is a
+# brief total partition rather than three brief single-node blips.
+# wg-quick@ is a Type=oneshot unit, so `systemctl restart` does not return until
+# the interface is configured, which makes the staggering real.
 - name: Restart wireguard
   ansible.builtin.systemd:
     name: "wg-quick@{{ wg_interface }}"
     state: restarted
+  throttle: 1

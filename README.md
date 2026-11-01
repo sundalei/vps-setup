@@ -114,6 +114,7 @@ Hosts are grouped by functional role in `inventory/hosts.yml`:
 │   ├── base.yml                 # System baseline (sysctl, packages, firewall defaults)
 │   ├── network.yml              # WireGuard mesh installation and connectivity check
 │   ├── elasticsearch.yml        # Application deployment: ES Cluster -> Kibana -> Web Proxy
+│   ├── docker.yml               # Docker Engine, buildx and compose on docker_hosts
 │   ├── *-stop.yml / *-start.yml # Safe stop and start per middleware (elasticsearch, mongodb)
 │   └── stop-all.yml / start-all.yml # Stop or start every middleware to free memory
 └── roles/
@@ -123,6 +124,7 @@ Hosts are grouped by functional role in `inventory/hosts.yml`:
     ├── elasticsearch/           # Pinned install, CA/node cert generation, keystore seeding, quorum health gate
     ├── kibana/                  # Pinned install, static encryption keys, loopback service check
     ├── mongodb/                 # Tarball install, replica set over WireGuard, Database Tools (mongodump, mongorestore)
+    ├── docker/                  # Docker Engine from download.docker.com, pinned version, log limits
     └── apache/                  # Reverse proxy, Let's Encrypt TLS, and teardown (remove.yml)
 ```
 
@@ -212,6 +214,25 @@ Each playbook is standalone and can be triggered independently:
   ```bash
   ansible-playbook playbooks/elasticsearch.yml
   ```
+
+- **Docker Engine**:
+
+  ```bash
+  ansible-playbook playbooks/docker.yml
+  ```
+
+  Installs `docker-ce`, `containerd.io` and the buildx and compose plugins
+  from Docker's own repository on every host in `docker_hosts`, pinned to
+  `docker_version` in `group_vars/docker_hosts/main.yml`. The admin user joins the
+  `docker` group (log in again to pick it up). `/etc/docker/daemon.json`
+  caps container logs at 3 x 10 MB.
+
+  firewalld and ufw do not block ports published with `-p`, because Docker
+  puts its own firewall rules before theirs. Publish ports on `127.0.0.1` or
+  the WireGuard IP, and put Apache in front of anything that must be public.
+
+  If firewalld is running, the playbook also checks that Docker added its
+  `docker` zone to it, and restarts Docker once if the zone is missing.
 
 ---
 
