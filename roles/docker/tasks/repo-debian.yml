@@ -28,7 +28,7 @@
 - name: Check the key fingerprint
   ansible.builtin.shell:
     executable: /bin/bash
-    cmd: set -o pipefail && gpg --show-keys --with-colons /etc/apt/keyrings/docker.asc | grep -q 'fpr:::::::::{{ docker_gpg_fingerprint_debian }}:'
+    cmd: set -o pipefail && gpg --show-keys --with-colons /etc/apt/keyrings/docker.asc | grep -q '^fpr:::::::::{{ docker_gpg_fingerprint_debian }}:'
   changed_when: false
 
 # deb822_repository needs this Python library on the server.

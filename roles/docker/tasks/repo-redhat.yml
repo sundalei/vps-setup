@@ -23,7 +23,8 @@
       - runc
     state: absent
 
-# rpm_key refuses the key if its fingerprint does not match.
+# rpm_key checks the fingerprint only when it imports the key.
+# If the key is already trusted, it skips the check and reports "ok".
 - name: Trust Docker's signing key
   ansible.builtin.rpm_key:
     key: https://download.docker.com/linux/rhel/gpg
