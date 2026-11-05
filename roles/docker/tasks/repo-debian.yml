@@ -52,7 +52,8 @@
   register: docker_apt_repo
 
 # Read the new repository now, so the install step can find docker-ce.
-# This is not a handler, because a handler would run too late (after the install).
+# Adding a repository only writes docker.sources, apt does not know its packages
+# until it downloads the package list (apt update).
 - name: Refresh the apt package list
   ansible.builtin.apt:
     update_cache: true
