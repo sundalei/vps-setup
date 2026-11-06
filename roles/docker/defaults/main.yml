@@ -1,5 +1,25 @@
 ---
+# Install Docker from Docker's own repository (docker-ce),
+# not the podman-docker package that comes with the distro.
+# Set the version with docker_version in group_vars/docker_hosts/main.yml.
+
+# Packages to install: the engine, the CLI, containerd,
+# and two plugins (docker buildx and docker compose).
+docker_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+
 # Docker signs its rpm and apt repositories with two different keys.
 # We check the key's fingerprint before we trust it.
 docker_gpg_fingerprint_redhat: "060A61C51B558A7F742B77AAC52FEB6B621E9F35"
 docker_gpg_fingerprint_debian: "9DC858229FC7DD38854AE2D88D81803C0EBFCD88"
+
+# These settings are written to /etc/docker/daemon.json.
+# Without a log size limit, a noisy container can fill the disk with its logs.
+# Log limits only apply to containers created after the file changes.
+docker_daemon_config:
+  log-driver: json-file
+  log-opts:
+    max-size: "10m"
+    max-file: "3"

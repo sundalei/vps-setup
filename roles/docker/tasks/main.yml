@@ -28,3 +28,41 @@
 - name: Add the Docker repository (Debian)
   ansible.builtin.import_tasks: repo-debian.yml
   when: ansible_facts['os_family'] == 'Debian'
+
+# config
+- name: Create /etc/docker
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# notify only queues the restart. It runs later, at "Apply a changed daemon.json now"
+# after Docker is installed and started.
+# On a fresh server this means one extra restart right after the first start, which is harmless.
+- name: Write daemon.json
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    content: "{{ docker_daemon_config | to_nice_json }}\n"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart docker
+
+# Install
+# Each package manager writes the version differently:
+#   dnf: docker-ce=29.9.2                          (dnf lets us leave out the epoch)
+#   apt: docker-ce=5:29.9.2-1~ubuntu.26.04~resolute  (epoch:version-revision)
+# The apt version needs the "5:" epoch, or nothing matches.
+# Its revision ends with the Ubuntu release (~noble, ~resolute), so we match it with a wildcard (*).
+- name: Install Docker Engine
+  ansible.builtin.debug:
+    # \1 means the full matched package name (docker-ce or docker-ce-cli)
+    # \2 just the optional -cli fragement
+    msg: "{{ docker_packages | map('regex_replace', '^(docker-ce(-cli)?)$', '\\1' ~ docker_version_suffix) | list }}"
+  vars:
+    docker_version_suffix: >-
+      {{ '' if not (docker_version | default('')) else
+         ('-' ~ docker_version) if ansible_facts['os_family'] == 'RedHat' else
+         ('=5:' ~ docker_version ~ '*') }}

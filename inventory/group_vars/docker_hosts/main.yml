@@ -1,1 +1,4 @@
 ---
+# Docker Engine version. Every node gets the same version.
+# Leave it empty ("") to install the newest version.
+docker_version: "29.9.2"
