@@ -9,11 +9,20 @@ docker_packages:
   - docker-ce
   - docker-ce-cli
   - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
 
 # Docker signs its rpm and apt repositories with two different keys.
 # We check the key's fingerprint before we trust it.
+# To see a key's fingerprint: gpg --show-key <downloaded key file>
 docker_gpg_fingerprint_redhat: "060A61C51B558A7F742B77AAC52FEB6B621E9F35"
 docker_gpg_fingerprint_debian: "9DC858229FC7DD38854AE2D88D81803C0EBFCD88"
+
+# Users who can run docker without sudo.
+# Being in the docker group is the same as having root access,
+# so only add users who already have sudo.
+docker_users:
+  - "{{ admin_user }}"
 
 # These settings are written to /etc/docker/daemon.json.
 # Without a log size limit, a noisy container can fill the disk with its logs.
