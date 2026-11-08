@@ -96,3 +96,59 @@
 # so the checks below talk to Docker with the new settings.
 - name: Apply a changed daemon.json now
   ansible.builtin.meta: flush_handlers
+
+# check
+# Fail here if the Docker daemon is not running or not answering.
+- name: Check that the daemon answers
+  ansible.builtin.command:
+    cmd: docker version --format '{{ "{{" }} .Server.Version {{ "}}" }}'
+  register: docker_server_version
+  changed_when: false
+
+- name: Show the running Docker version
+  ansible.builtin.debug:
+    msg: "Docker {{ docker_server_version.stdout }} on {{ inventory_hostname }}"
+
+# Docker only joins firewalld if firewalld was running when Docker started.
+# If firewalld was started later, Docker's "docker" zone is missing, and
+# containers can lose network access after the next firewall reload.
+- name: Read the state of system services
+  ansible.builtin.service_facts:
+
+# true only when firewalld is installed and running.
+# default({}) and .get() work as a pair, so a missing service gives false instead of failing:
+#   - service_facts only lists firewalld.service if some unit mentions it
+#     (today docker.service does, so es3 shows it as "stopped / not-found").
+#     If it is not listed, default({}) gives an empty dict.
+#   - {}['state'] would fail ("has no attribute 'state'"); {}.get('state') gives None,
+#     and None == 'running' is false.
+- name: Remember whether firewalld is running
+  ansible.builtin.set_fact:
+    docker_firewalld_running: >-
+      {{ (ansible_facts['services']['firewalld.service'] | default({}))
+         .get('state') == 'running' }}
+
+- name: List the firewalld zones
+  ansible.builtin.command:
+    cmd: firewall-cmd --get-zones
+  changed_when: false
+  register: docker_firewalld_zones
+  when: docker_firewalld_running | bool
+
+# The zone is missing, so restart Docker.
+# Now firewalld is running, so Docker adds its zone this time.
+- name: Restart Docker so it joins firewalld
+  ansible.builtin.systemd:
+    name: docker
+    state: restarted
+  when:
+    - docker_firewalld_running | bool
+    - "'docker' not in docker_firewalld_zones.stdout.split()"
+
+- name: Check again that the docker zone exists
+  ansible.builtin.command:
+    cmd: firewall-cmd --get-zones
+  changed_when: false
+  register: docker_firewalld_zones_after
+  failed_when: "'docker' not in docker_firewalld_zones_after.stdout.split()"
+  when: docker_firewalld_running | bool
