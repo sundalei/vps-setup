@@ -50,6 +50,15 @@
           (known: {{ wg_extra_peers | default([]) | map(attribute='name') | list }}).
         quiet: true
 
+    - name: Client name must be a valid WireGuard interface name
+      ansible.builtin.assert:
+        that: wg_client is match('^[a-zA-Z0-9_=+.-]{1,15}$')
+        fail_msg: >-
+          '{{ wg_client }}' is {{ wg_client | length }} characters. wg-quick
+          requires 1-15 of [a-zA-Z0-9_=+.-], since the config filename becomes
+          the interface name.
+        quiet: true
+
     - name: Look for the private key outside the repo
       ansible.builtin.stat:
         path: "{{ wg_client_key_file }}"

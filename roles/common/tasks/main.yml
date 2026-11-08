@@ -22,8 +22,8 @@
     state: present
   vars:
     base_packages: >-
-      {{ ['curl', 'unzip', 'git', 'firewalld'] if ansible_facts['os_family'] == 'RedHat'
-         else ['curl', 'unzip', 'git', 'ufw', 'iputils-ping'] }}
+      {{ ['curl', 'unzip', 'git', 'firewalld', 'vim'] if ansible_facts['os_family'] == 'RedHat'
+         else ['curl', 'unzip', 'git', 'ufw', 'iputils-ping', 'vim'] }}
 
 # --- Firewall baseline ---
 # RedHat: firewalld is the default and SSH is already allowed; just ensure it runs.

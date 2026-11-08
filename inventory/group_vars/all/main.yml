@@ -25,6 +25,10 @@ wg_extra_peers:
     public_key: "kQ2ziRgZ2sTkvCwuxXYroGvpAn4k2kxbN8NFfZIrjQI="
     allowed_ips: 10.10.0.11/32
     mongodb: true
+  - name: macbook-air-2
+    public_key: "LlxPDmQA4t7VsJikke1LYjTPSebYl2UlGCKekkhs83g="
+    allowed_ips: 10.10.0.12/32
+    mongodb: true
 
 # Ports
 es_http_port: 9200
